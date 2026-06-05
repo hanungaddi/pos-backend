@@ -13,6 +13,10 @@
   ],
   "tags": [
     {
+      "name": "Auth",
+      "description": "Authentication and profile management"
+    },
+    {
       "name": "Products",
       "description": "Product catalog and stock management"
     },
@@ -26,6 +30,410 @@
     }
   ],
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "User login",
+        "description": "Authenticates a user with username and password, returns a Sanctum access token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Account disabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "User logout",
+        "description": "Revokes the personal access token being used to authenticate the current request.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout successful.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Logout berhasil."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get authenticated user profile",
+        "description": "Returns details of the currently logged-in user, including their assigned roles and permissions.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["user"],
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "List users",
+        "description": "Retrieves a paginated list of users. Access is restricted to users with 'manage_users' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query for name, username, or email.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "Filter by role name.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "kasir"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by active/inactive status.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["active", "inactive"],
+              "example": "active"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users list retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "links", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden - Insufficient permissions."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Create new user",
+        "description": "Registers a new user and assigns them roles. Access is restricted to users with 'manage_users' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["message", "data"],
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User berhasil ditambahkan."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user}": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get user details",
+        "description": "Retrieves the profile details of a single user. Access is restricted to users with 'manage_users' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "description": "User ID.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Update user",
+        "description": "Updates profile info, roles, and status of a user. Access is restricted to users with 'manage_users' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "description": "User ID.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["message", "data"],
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User berhasil diperbarui."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "Deactivate user",
+        "description": "Sets a user's status to 'inactive' to block login while preserving historical transaction records. Access is restricted to users with 'manage_users' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "description": "User ID.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deactivated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["message"],
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User berhasil dinonaktifkan."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/products": {
       "get": {
         "tags": ["Products"],
@@ -395,6 +803,14 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter the Sanctum plainTextToken retrieved from login."
+      }
+    },
     "parameters": {
       "ProductId": {
         "name": "product",
@@ -874,6 +1290,181 @@
           "message": {
             "type": "string",
             "example": "Not Found"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "admin_pos"
+          },
+          "password": {
+            "type": "string",
+            "example": "password"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["message", "access_token", "token_type", "user"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Login berhasil."
+          },
+          "access_token": {
+            "type": "string",
+            "example": "1|abcdef123456"
+          },
+          "token_type": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "username", "status", "roles", "permissions"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Admin POS"
+          },
+          "username": {
+            "type": "string",
+            "example": "admin_pos"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "admin@pos.com"
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "example": "active"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["admin"]
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["manage_users", "manage_products", "create_sales"]
+          }
+        }
+      },
+      "UserCreate": {
+        "type": "object",
+        "required": ["name", "username", "password", "roles"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Kasir Baru"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "kasir_baru"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true,
+            "example": "kasirbaru@pos.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "securepassword"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["admin", "manajer_toko", "supervisor", "kasir"]
+            },
+            "example": ["kasir"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive"],
+            "default": "active",
+            "example": "active"
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          }
+        }
+      },
+      "UserUpdate": {
+        "type": "object",
+        "required": ["name", "username", "roles", "status"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Kasir Baru"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "kasir_baru"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true,
+            "example": "kasirbaru@pos.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "nullable": true,
+            "example": "newsecurepassword"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["admin", "manajer_toko", "supervisor", "kasir"]
+            },
+            "example": ["kasir"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive"],
+            "example": "active"
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
           }
         }
       }

@@ -1,8 +1,30 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SaleController;
 use Illuminate\Support\Facades\Route;
+
+// Auth Routes (V1)
+use App\Http\Controllers\Api\V1\UserController;
+
+// API Routes V1
+Route::prefix('v1')->group(function () {
+    // Auth Routes
+    Route::prefix('auth')->group(function () {
+        Route::post('login', [AuthController::class, 'login']);
+        
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::post('logout', [AuthController::class, 'logout']);
+            Route::get('me', [AuthController::class, 'me']);
+        });
+    });
+
+    // User Management CRUD Routes
+    Route::middleware(['auth:sanctum', 'permission:manage_users'])->group(function () {
+        Route::apiResource('users', UserController::class);
+    });
+});
 
 Route::apiResource('products', ProductController::class);
 

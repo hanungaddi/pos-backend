@@ -14,11 +14,11 @@ class DatabaseSeederTest extends TestCase
         $this->seed();
         $this->seed();
 
-        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('users', 2);
         $this->assertDatabaseCount('products', 3);
 
         $this->assertDatabaseHas('users', [
-            'email' => 'test@example.com',
+            'email' => 'admin@pos.com',
         ]);
 
         $this->assertDatabaseHas('products', [
