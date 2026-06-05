@@ -125,7 +125,7 @@ class TransactionController extends Controller
         ], 201);
     }
 
-    public function show($id): JsonResponse
+    public function show(Request $request, $id): JsonResponse
     {
         $user = $request->user() ?? auth()->user();
         $query = Transaction::with(['items.product', 'user', 'voidBy']);
@@ -309,27 +309,40 @@ class TransactionController extends Controller
         }
 
         $validated = $request->validate([
-            'nominal_bayar' => ['required', 'integer', 'min:0'],
-            'diskon' => ['nullable', 'integer', 'min:0'],
-            'pajak' => ['nullable', 'integer', 'min:0'],
+            // Accept both field name variants (frontend sends cash_received)
+            'cash_received'  => ['nullable', 'numeric', 'min:0'],
+            'nominal_bayar'  => ['nullable', 'numeric', 'min:0'],
+            'diskon'         => ['nullable', 'integer', 'min:0'],
+            'pajak'          => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
+        // Normalise: support both cash_received and nominal_bayar
+        $cashReceived = $validated['cash_received'] ?? $validated['nominal_bayar'] ?? null;
 
-        if ($validated['nominal_bayar'] < $transaction->total) {
+        if ($cashReceived === null) {
             throw ValidationException::withMessages([
-                'nominal_bayar' => ['Nominal bayar kurang dari total transaksi.'],
+                'cash_received' => ['Nominal bayar wajib diisi.'],
             ]);
         }
 
-        $updatedTransaction = DB::transaction(function () use ($transaction, $validated, $request) {
+        $cashReceived = (int) $cashReceived;
+
+        $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
+
+        if ($cashReceived < $transaction->total) {
+            throw ValidationException::withMessages([
+                'cash_received' => ['Nominal bayar kurang dari total transaksi.'],
+            ]);
+        }
+
+        $updatedTransaction = DB::transaction(function () use ($transaction, $cashReceived, $request) {
             $this->validateAndDeductStock($transaction, $request->user());
 
             $transaction->update([
-                'status' => 'completed',
-                'metode_pembayaran' => 'cash',
-                'nominal_bayar' => $validated['nominal_bayar'],
-                'kembalian' => $validated['nominal_bayar'] - $transaction->total,
+                'status'           => 'completed',
+                'metode_pembayaran'=> 'cash',
+                'nominal_bayar'    => $cashReceived,
+                'kembalian'        => $cashReceived - $transaction->total,
             ]);
 
             return $transaction->fresh(['items.product', 'user']);
@@ -337,7 +350,7 @@ class TransactionController extends Controller
 
         return response()->json([
             'message' => 'Transaksi berhasil dibayar',
-            'data' => $updatedTransaction,
+            'data'    => $updatedTransaction,
         ]);
     }
 
@@ -349,26 +362,38 @@ class TransactionController extends Controller
         }
 
         $validated = $request->validate([
-            'jenis_kartu' => ['required', 'string', 'in:debit,kredit'],
-            'nomor_kartu_akhir' => ['required', 'string', 'size:4'],
-            'referensi_edc' => ['required', 'string', 'max:50'],
-            'diskon' => ['nullable', 'integer', 'min:0'],
-            'pajak' => ['nullable', 'integer', 'min:0'],
+            // Accept both Indonesian field names and frontend English names
+            'jenis_kartu'        => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'card_type'          => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'nomor_kartu_akhir'  => ['nullable', 'string', 'size:4'],
+            'last_four'          => ['nullable', 'string', 'size:4'],
+            'referensi_edc'      => ['nullable', 'string', 'max:50'],
+            'reference_number'   => ['nullable', 'string', 'max:50'],
+            'diskon'             => ['nullable', 'integer', 'min:0'],
+            'pajak'              => ['nullable', 'integer', 'min:0'],
         ]);
+
+        // Normalise field names
+        $jenisKartu       = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
+        $nomorKartuAkhir  = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
+        $referensiEdc     = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
+
+        // Normalise card type (frontend sends 'credit', backend stores 'kredit')
+        $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
 
         $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
 
-        $updatedTransaction = DB::transaction(function () use ($transaction, $validated, $request) {
+        $updatedTransaction = DB::transaction(function () use ($transaction, $jenisKartu, $nomorKartuAkhir, $referensiEdc, $request) {
             $this->validateAndDeductStock($transaction, $request->user());
 
             $transaction->update([
-                'status' => 'completed',
+                'status'            => 'completed',
                 'metode_pembayaran' => 'card',
-                'nominal_bayar' => $transaction->total,
-                'kembalian' => 0,
-                'jenis_kartu' => $validated['jenis_kartu'],
-                'nomor_kartu_akhir' => $validated['nomor_kartu_akhir'],
-                'referensi_edc' => $validated['referensi_edc'],
+                'nominal_bayar'     => $transaction->total,
+                'kembalian'         => 0,
+                'jenis_kartu'       => $jenisKartu,
+                'nomor_kartu_akhir' => $nomorKartuAkhir,
+                'referensi_edc'     => $referensiEdc,
             ]);
 
             return $transaction->fresh(['items.product', 'user']);
@@ -376,7 +401,7 @@ class TransactionController extends Controller
 
         return response()->json([
             'message' => 'Transaksi berhasil dibayar via kartu',
-            'data' => $updatedTransaction,
+            'data'    => $updatedTransaction,
         ]);
     }
 
