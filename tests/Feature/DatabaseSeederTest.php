@@ -14,7 +14,7 @@ class DatabaseSeederTest extends TestCase
         $this->seed();
         $this->seed();
 
-        $this->assertDatabaseCount('users', 2);
+        $this->assertDatabaseCount('users', 4);
         $this->assertDatabaseCount('products', 3);
 
         $this->assertDatabaseHas('users', [
