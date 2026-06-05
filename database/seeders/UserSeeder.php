@@ -35,5 +35,29 @@ class UserSeeder extends Seeder
             'store_id' => 1, // Assume default store id is 1
         ]);
         $cashier->syncRoles(['kasir']);
+
+        // Create Manager User
+        $manager = User::updateOrCreate([
+            'username' => 'manager_store',
+        ], [
+            'name' => 'Manager Store',
+            'email' => 'manager@pos.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+            'store_id' => 1,
+        ]);
+        $manager->syncRoles(['manajer_toko']);
+
+        // Create Supervisor User
+        $supervisor = User::updateOrCreate([
+            'username' => 'spv_pos',
+        ], [
+            'name' => 'Supervisor POS',
+            'email' => 'supervisor@pos.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+            'store_id' => 1,
+        ]);
+        $supervisor->syncRoles(['supervisor']);
     }
 }

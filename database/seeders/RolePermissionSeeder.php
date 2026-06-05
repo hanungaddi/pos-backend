@@ -24,6 +24,8 @@ class RolePermissionSeeder extends Seeder
             'manage_sales',
             'view_reports',
             'create_sales',
+            'manage_inventory',
+            'view_inventory',
         ];
 
         // Create permissions
@@ -37,21 +39,24 @@ class RolePermissionSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions($permissions);
 
-        // Manajer Toko: can manage products, sales, view reports, and create sales
+        // Manajer Toko: can manage products, sales, view reports, create sales, and manage/view inventory
         $manajerRole = Role::firstOrCreate(['name' => 'manajer_toko', 'guard_name' => 'web']);
         $manajerRole->syncPermissions([
             'manage_products',
             'manage_sales',
             'view_reports',
-            'create_sales'
+            'create_sales',
+            'manage_inventory',
+            'view_inventory',
         ]);
 
-        // Supervisor: can manage products, sales, and create sales
+        // Supervisor: can manage products, sales, create sales, and view inventory
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions([
             'manage_products',
             'manage_sales',
-            'create_sales'
+            'create_sales',
+            'view_inventory',
         ]);
 
         // Kasir: can only create sales and view products

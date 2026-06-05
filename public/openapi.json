@@ -21,18 +21,24 @@
       "description": "Product catalog and stock management"
     },
     {
-      "name": "Sales",
-      "description": "Checkout and sales history"
+      "name": "Transactions",
+      "description": "Transactions management and history"
     },
     {
       "name": "Reports",
       "description": "Sales summary metrics"
+    },
+    {
+      "name": "Inventory",
+      "description": "Stock movements, receiving, adjustment, and opname"
     }
   ],
   "paths": {
     "/api/v1/auth/login": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "User login",
         "description": "Authenticates a user with username and password, returns a Sanctum access token.",
         "requestBody": {
@@ -81,7 +87,9 @@
     },
     "/api/v1/auth/logout": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "User logout",
         "description": "Revokes the personal access token being used to authenticate the current request.",
         "security": [
@@ -114,7 +122,9 @@
     },
     "/api/v1/auth/me": {
       "get": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Get authenticated user profile",
         "description": "Returns details of the currently logged-in user, including their assigned roles and permissions.",
         "security": [
@@ -129,7 +139,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["user"],
+                  "required": [
+                    "user"
+                  ],
                   "properties": {
                     "user": {
                       "$ref": "#/components/schemas/User"
@@ -147,7 +159,9 @@
     },
     "/api/v1/users": {
       "get": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "List users",
         "description": "Retrieves a paginated list of users. Access is restricted to users with 'manage_users' permission.",
         "security": [
@@ -182,7 +196,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["active", "inactive"],
+              "enum": [
+                "active",
+                "inactive"
+              ],
               "example": "active"
             }
           }
@@ -194,7 +211,11 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data", "links", "meta"],
+                  "required": [
+                    "data",
+                    "links",
+                    "meta"
+                  ],
                   "properties": {
                     "data": {
                       "type": "array",
@@ -216,7 +237,9 @@
         }
       },
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Create new user",
         "description": "Registers a new user and assigns them roles. Access is restricted to users with 'manage_users' permission.",
         "security": [
@@ -241,7 +264,10 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["message", "data"],
+                  "required": [
+                    "message",
+                    "data"
+                  ],
                   "properties": {
                     "message": {
                       "type": "string",
@@ -269,7 +295,9 @@
     },
     "/api/v1/users/{user}": {
       "get": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Get user details",
         "description": "Retrieves the profile details of a single user. Access is restricted to users with 'manage_users' permission.",
         "security": [
@@ -296,7 +324,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data"],
+                  "required": [
+                    "data"
+                  ],
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/User"
@@ -318,7 +348,9 @@
         }
       },
       "put": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Update user",
         "description": "Updates profile info, roles, and status of a user. Access is restricted to users with 'manage_users' permission.",
         "security": [
@@ -355,7 +387,10 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["message", "data"],
+                  "required": [
+                    "message",
+                    "data"
+                  ],
                   "properties": {
                     "message": {
                       "type": "string",
@@ -384,7 +419,9 @@
         }
       },
       "delete": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Deactivate user",
         "description": "Sets a user's status to 'inactive' to block login while preserving historical transaction records. Access is restricted to users with 'manage_users' permission.",
         "security": [
@@ -411,7 +448,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["message"],
+                  "required": [
+                    "message"
+                  ],
                   "properties": {
                     "message": {
                       "type": "string",
@@ -434,9 +473,588 @@
         }
       }
     },
-    "/api/products": {
+    "/api/v1/inventory/movements": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List stock movements",
+        "description": "Retrieves a paginated list of stock movements. Access is restricted to users with 'view_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "tipe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sale",
+                "receive",
+                "adjustment",
+                "void",
+                "opname"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockMovement"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/movements/{productId}": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List stock movements by product",
+        "description": "Retrieves movements for a specific product. Access is restricted to users with 'view_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "tipe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sale",
+                "receive",
+                "adjustment",
+                "void",
+                "opname"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockMovement"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/receiving": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List stock receivings",
+        "description": "Retrieves list of receivings. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search keyword for supplier, invoice number, or billing number.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockReceiving"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Create stock receiving",
+        "description": "Records a new incoming stock from a supplier and increments product stock levels. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockReceivingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockReceiving"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/receiving/{id}": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get stock receiving details",
+        "description": "Retrieves detail of a single receiving record. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StockReceiving"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/adjustment": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Manual stock adjustment",
+        "description": "Manually adjusts the stock of a product (damage, loss, etc.). Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockAdjustmentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockMovement"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/opname": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List stock opnames",
+        "description": "Retrieves list of opnames. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "completed"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockOpname"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Create draft stock opname",
+        "description": "Records a new draft stock opname. Does not modify actual product stock. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockOpnameCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockOpname"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/opname/{id}": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get stock opname details",
+        "description": "Retrieves detail of a single opname record. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StockOpname"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Update and finalize stock opname",
+        "description": "Updates a draft stock opname. If status is 'completed', finalizes it, adjusts product stock levels, and records stock movements. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockOpnameUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockOpname"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error / Opname already finalized"
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
         "summary": "List products",
         "parameters": [
           {
@@ -474,10 +1092,17 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       },
       "post": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Create one or many products",
         "requestBody": {
           "required": true,
@@ -542,12 +1167,19 @@
           "422": {
             "$ref": "#/components/responses/ValidationError"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
-    "/api/products/{product}": {
+    "/api/v1/products/{product}": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Get product detail",
         "parameters": [
           {
@@ -568,10 +1200,17 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       },
       "put": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Replace or update product",
         "parameters": [
           {
@@ -611,10 +1250,17 @@
           "422": {
             "$ref": "#/components/responses/ValidationError"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       },
       "patch": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Partially update product",
         "parameters": [
           {
@@ -651,10 +1297,17 @@
           "422": {
             "$ref": "#/components/responses/ValidationError"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       },
       "delete": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Delete product",
         "parameters": [
           {
@@ -668,12 +1321,102 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/barcode/{barcode}": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Get product by barcode",
+        "description": "Retrieve active product detail by barcode. Accessible by all authenticated roles.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "barcode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product found."
+          },
+          "404": {
+            "description": "Product not found."
+          }
         }
       }
     },
-    "/api/sales": {
+    "/api/v1/products/{product}/status": {
+      "patch": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Change product status",
+        "description": "Toggles product status between active and inactive. Restricted to manage_products permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product status updated."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions": {
       "get": {
-        "tags": ["Sales"],
+        "tags": [
+          "Transactions"
+        ],
         "summary": "List sales",
         "parameters": [
           {
@@ -700,10 +1443,17 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       },
       "post": {
-        "tags": ["Sales"],
+        "tags": [
+          "Transactions"
+        ],
         "summary": "Checkout sale",
         "description": "Creates a sale, stores item snapshots, validates stock, and decreases product stock.",
         "requestBody": {
@@ -743,12 +1493,19 @@
           "422": {
             "$ref": "#/components/responses/ValidationError"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
-    "/api/sales/{sale}": {
+    "/api/v1/transactions/{transaction}": {
       "get": {
-        "tags": ["Sales"],
+        "tags": [
+          "Transactions"
+        ],
         "summary": "Get sale detail",
         "parameters": [
           {
@@ -769,12 +1526,487 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/transactions/on-hold": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List on-hold transactions",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of on-hold transactions."
+          }
         }
       }
     },
-    "/api/reports/summary": {
+    "/api/v1/transactions/{transaction}/items": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Add item to transaction",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "integer"
+                  },
+                  "barcode": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "quantity"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item added."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/items/{itemId}": {
+      "put": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Update item quantity",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "quantity"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item updated."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Remove item from transaction",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item removed."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/hold": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Hold transaction",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction put on hold."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/recall": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Recall transaction",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction recalled to draft."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/pay/cash": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Pay transaction with cash",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nominal_bayar": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "diskon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "pajak": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "nominal_bayar"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction completed."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/pay/card": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Pay transaction with card",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "jenis_kartu": {
+                    "type": "string",
+                    "enum": [
+                      "debit",
+                      "kredit"
+                    ]
+                  },
+                  "nomor_kartu_akhir": {
+                    "type": "string",
+                    "maxLength": 4,
+                    "minLength": 4
+                  },
+                  "referensi_edc": {
+                    "type": "string"
+                  },
+                  "diskon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "pajak": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "jenis_kartu",
+                  "nomor_kartu_akhir",
+                  "referensi_edc"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction completed."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/pay/split": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Pay transaction with split cash and card",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cash_amount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "card_amount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "nominal_bayar": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "jenis_kartu": {
+                    "type": "string",
+                    "enum": [
+                      "debit",
+                      "kredit"
+                    ]
+                  },
+                  "nomor_kartu_akhir": {
+                    "type": "string",
+                    "maxLength": 4,
+                    "minLength": 4
+                  },
+                  "referensi_edc": {
+                    "type": "string"
+                  },
+                  "diskon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "pajak": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "cash_amount",
+                  "card_amount",
+                  "nominal_bayar",
+                  "jenis_kartu",
+                  "nomor_kartu_akhir",
+                  "referensi_edc"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction completed."
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction}/void": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Void transaction",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "catatan_void": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "catatan_void"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction voided."
+          }
+        }
+      }
+    },
+    "/api/v1/reports/summary": {
       "get": {
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "summary": "Get sales summary",
         "parameters": [
           {
@@ -797,6 +2029,41 @@
                 }
               }
             }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/sales/daily": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Daily sales report",
+        "description": "Retrieve daily sales metrics. Restricted to view_reports permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daily report metrics."
           }
         }
       }
@@ -890,7 +2157,15 @@
     "schemas": {
       "Product": {
         "type": "object",
-        "required": ["id", "nama", "merek", "stok", "harga", "created_at", "updated_at"],
+        "required": [
+          "id",
+          "nama",
+          "merek",
+          "stok",
+          "harga",
+          "created_at",
+          "updated_at"
+        ],
         "properties": {
           "id": {
             "type": "integer",
@@ -929,7 +2204,11 @@
       },
       "ProductCreate": {
         "type": "object",
-        "required": ["nama", "stok", "harga"],
+        "required": [
+          "nama",
+          "stok",
+          "harga"
+        ],
         "properties": {
           "nama": {
             "type": "string",
@@ -982,7 +2261,10 @@
       },
       "ProductCreateResponse": {
         "type": "object",
-        "required": ["message", "data"],
+        "required": [
+          "message",
+          "data"
+        ],
         "properties": {
           "message": {
             "type": "string",
@@ -1088,7 +2370,15 @@
       },
       "SaleItem": {
         "type": "object",
-        "required": ["id", "sale_id", "product_id", "product_name", "price", "quantity", "subtotal"],
+        "required": [
+          "id",
+          "sale_id",
+          "product_id",
+          "product_name",
+          "price",
+          "quantity",
+          "subtotal"
+        ],
         "properties": {
           "id": {
             "type": "integer",
@@ -1126,7 +2416,10 @@
       },
       "SaleCreate": {
         "type": "object",
-        "required": ["paid", "items"],
+        "required": [
+          "paid",
+          "items"
+        ],
         "properties": {
           "customer_name": {
             "type": "string",
@@ -1175,7 +2468,10 @@
       },
       "SaleCreateItem": {
         "type": "object",
-        "required": ["product_id", "quantity"],
+        "required": [
+          "product_id",
+          "quantity"
+        ],
         "properties": {
           "product_id": {
             "type": "integer",
@@ -1190,7 +2486,10 @@
       },
       "SaleCreateResponse": {
         "type": "object",
-        "required": ["message", "data"],
+        "required": [
+          "message",
+          "data"
+        ],
         "properties": {
           "message": {
             "type": "string",
@@ -1247,7 +2546,11 @@
       },
       "TopProduct": {
         "type": "object",
-        "required": ["product_name", "quantity", "revenue"],
+        "required": [
+          "product_name",
+          "quantity",
+          "revenue"
+        ],
         "properties": {
           "product_name": {
             "type": "string",
@@ -1279,7 +2582,9 @@
               }
             },
             "example": {
-              "nama": ["The nama field is required."]
+              "nama": [
+                "The nama field is required."
+              ]
             }
           }
         }
@@ -1295,7 +2600,10 @@
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["username", "password"],
+        "required": [
+          "username",
+          "password"
+        ],
         "properties": {
           "username": {
             "type": "string",
@@ -1309,7 +2617,12 @@
       },
       "LoginResponse": {
         "type": "object",
-        "required": ["message", "access_token", "token_type", "user"],
+        "required": [
+          "message",
+          "access_token",
+          "token_type",
+          "user"
+        ],
         "properties": {
           "message": {
             "type": "string",
@@ -1330,7 +2643,14 @@
       },
       "User": {
         "type": "object",
-        "required": ["id", "name", "username", "status", "roles", "permissions"],
+        "required": [
+          "id",
+          "name",
+          "username",
+          "status",
+          "roles",
+          "permissions"
+        ],
         "properties": {
           "id": {
             "type": "integer",
@@ -1363,20 +2683,31 @@
             "items": {
               "type": "string"
             },
-            "example": ["admin"]
+            "example": [
+              "admin"
+            ]
           },
           "permissions": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "example": ["manage_users", "manage_products", "create_sales"]
+            "example": [
+              "manage_users",
+              "manage_products",
+              "create_sales"
+            ]
           }
         }
       },
       "UserCreate": {
         "type": "object",
-        "required": ["name", "username", "password", "roles"],
+        "required": [
+          "name",
+          "username",
+          "password",
+          "roles"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -1404,13 +2735,23 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["admin", "manajer_toko", "supervisor", "kasir"]
+              "enum": [
+                "admin",
+                "manajer_toko",
+                "supervisor",
+                "kasir"
+              ]
             },
-            "example": ["kasir"]
+            "example": [
+              "kasir"
+            ]
           },
           "status": {
             "type": "string",
-            "enum": ["active", "inactive"],
+            "enum": [
+              "active",
+              "inactive"
+            ],
             "default": "active",
             "example": "active"
           },
@@ -1423,7 +2764,12 @@
       },
       "UserUpdate": {
         "type": "object",
-        "required": ["name", "username", "roles", "status"],
+        "required": [
+          "name",
+          "username",
+          "roles",
+          "status"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -1452,19 +2798,461 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["admin", "manajer_toko", "supervisor", "kasir"]
+              "enum": [
+                "admin",
+                "manajer_toko",
+                "supervisor",
+                "kasir"
+              ]
             },
-            "example": ["kasir"]
+            "example": [
+              "kasir"
+            ]
           },
           "status": {
             "type": "string",
-            "enum": ["active", "inactive"],
+            "enum": [
+              "active",
+              "inactive"
+            ],
             "example": "active"
           },
           "store_id": {
             "type": "integer",
             "nullable": true,
             "example": 1
+          }
+        }
+      },
+      "StockMovement": {
+        "type": "object",
+        "required": [
+          "id",
+          "product_id",
+          "tipe",
+          "kuantitas",
+          "stok_sebelum",
+          "stok_sesudah"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "tipe": {
+            "type": "string",
+            "enum": [
+              "sale",
+              "receive",
+              "adjustment",
+              "void",
+              "opname"
+            ],
+            "example": "receive"
+          },
+          "kuantitas": {
+            "type": "integer",
+            "example": 10
+          },
+          "stok_sebelum": {
+            "type": "integer",
+            "example": 5
+          },
+          "stok_sesudah": {
+            "type": "integer",
+            "example": 15
+          },
+          "referensi_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "referensi_tipe": {
+            "type": "string",
+            "nullable": true,
+            "example": "receiving"
+          },
+          "alasan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Penerimaan barang dari supplier"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StockReceiving": {
+        "type": "object",
+        "required": [
+          "id",
+          "nomor_penerimaan",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "nomor_penerimaan": {
+            "type": "string",
+            "example": "RCV-20260605-ABCD"
+          },
+          "supplier": {
+            "type": "string",
+            "nullable": true,
+            "example": "PT Sembako Makmur"
+          },
+          "nomor_faktur": {
+            "type": "string",
+            "nullable": true,
+            "example": "INV/12345"
+          },
+          "catatan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Barang masuk rutin"
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockReceivingItem"
+            }
+          }
+        }
+      },
+      "StockReceivingItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "stock_receiving_id",
+          "product_id",
+          "kuantitas"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stock_receiving_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "kuantitas": {
+            "type": "integer",
+            "example": 10
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StockReceivingCreate": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "supplier": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "PT Sembako Makmur"
+          },
+          "nomor_faktur": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "INV/12345"
+          },
+          "catatan": {
+            "type": "string",
+            "example": "Barang masuk rutin"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "product_id",
+                "kuantitas"
+              ],
+              "properties": {
+                "product_id": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "kuantitas": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "example": 10
+                }
+              }
+            }
+          }
+        }
+      },
+      "StockAdjustmentCreate": {
+        "type": "object",
+        "required": [
+          "product_id",
+          "kuantitas",
+          "alasan"
+        ],
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "kuantitas": {
+            "type": "integer",
+            "example": -3
+          },
+          "alasan": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "Beras tumpah dan basah"
+          }
+        }
+      },
+      "StockOpname": {
+        "type": "object",
+        "required": [
+          "id",
+          "nomor_opname",
+          "status",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "nomor_opname": {
+            "type": "string",
+            "example": "OPN-20260605-EFGH"
+          },
+          "catatan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Opname akhir bulan"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "completed"
+            ],
+            "example": "draft"
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockOpnameItem"
+            }
+          }
+        }
+      },
+      "StockOpnameItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "stock_opname_id",
+          "product_id",
+          "stok_sistem",
+          "stok_fisik",
+          "selisih"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stock_opname_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stok_sistem": {
+            "type": "integer",
+            "example": 10
+          },
+          "stok_fisik": {
+            "type": "integer",
+            "example": 12
+          },
+          "selisih": {
+            "type": "integer",
+            "example": 2
+          },
+          "alasan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Selisih temuan di rak"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StockOpnameCreate": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "catatan": {
+            "type": "string",
+            "example": "Opname akhir bulan"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "product_id",
+                "stok_fisik"
+              ],
+              "properties": {
+                "product_id": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "stok_fisik": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 12
+                },
+                "alasan": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "example": "Selisih temuan di rak"
+                }
+              }
+            }
+          }
+        }
+      },
+      "StockOpnameUpdate": {
+        "type": "object",
+        "required": [
+          "status",
+          "items"
+        ],
+        "properties": {
+          "catatan": {
+            "type": "string",
+            "example": "Opname akhir bulan"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "completed"
+            ],
+            "example": "completed"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "product_id",
+                "stok_fisik"
+              ],
+              "properties": {
+                "product_id": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "stok_fisik": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 12
+                },
+                "alasan": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "example": "Selisih temuan di rak (terverifikasi)"
+                }
+              }
+            }
           }
         }
       }

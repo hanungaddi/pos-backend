@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
-    protected $fillable = ['nama', 'merek', 'stok', 'harga'];
+    protected $fillable = ['nama', 'merek', 'barcode', 'stok', 'harga', 'status'];
 
     protected function casts(): array
     {
@@ -17,8 +17,8 @@ class Product extends Model
         ];
     }
 
-    public function saleItems(): HasMany
+    public function transactionItems(): HasMany
     {
-        return $this->hasMany(SaleItem::class);
+        return $this->hasMany(TransactionItem::class);
     }
 }
