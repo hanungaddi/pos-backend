@@ -1,4 +1,4 @@
-# Tumbas POS Backend
+# POS Backend
 
 Backend Laravel untuk fitur point of sale minimal: kelola produk, checkout transaksi,
 pengurangan stok otomatis, riwayat transaksi, dan ringkasan penjualan.
