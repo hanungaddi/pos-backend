@@ -229,17 +229,24 @@ class InventoryManagementTest extends TestCase
 
     public function test_sales_checkout_records_sale_stock_movement(): void
     {
-        // Perform a sale checkout
-        $response = $this->postJson('/api/sales', [
-            'cashier_name' => 'Kasir 1',
-            'payment_method' => 'cash',
-            'paid' => 200000,
-            'items' => [
-                ['product_id' => $this->product->id, 'quantity' => 2],
-            ],
-        ]);
+        // Create a transaction as cashier
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'items' => [
+                    ['product_id' => $this->product->id, 'quantity' => 2],
+                ],
+            ]);
 
         $response->assertCreated();
+        $trxId = $response->json('data.id');
+
+        // Pay the transaction
+        $payResponse = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
+                'nominal_bayar' => 200000,
+            ]);
+
+        $payResponse->assertOk();
 
         // Stock decreased from 10 to 8
         $this->assertEquals(8, $this->product->fresh()->stok);
@@ -251,7 +258,8 @@ class InventoryManagementTest extends TestCase
             'kuantitas' => -2,
             'stok_sebelum' => 10,
             'stok_sesudah' => 8,
-            'referensi_tipe' => 'sale',
+            'referensi_id' => $trxId,
+            'referensi_tipe' => 'transaction',
         ]);
     }
 }

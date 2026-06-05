@@ -19,8 +19,8 @@ class SwaggerDocsTest extends TestCase
         $this->get('/docs/openapi.json')
             ->assertOk()
             ->assertJsonPath('info.title', 'Tumbas POS API')
-            ->assertJsonPath('paths./api/products.get.tags.0', 'Products')
-            ->assertJsonPath('paths./api/sales.post.tags.0', 'Sales')
-            ->assertJsonPath('paths./api/reports/summary.get.tags.0', 'Reports');
+            ->assertJsonPath('paths./api/v1/products.get.tags.0', 'Products')
+            ->assertJsonPath('paths./api/v1/transactions.post.tags.0', 'Transactions')
+            ->assertJsonPath('paths./api/v1/reports/summary.get.tags.0', 'Reports');
     }
 }

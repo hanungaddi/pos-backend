@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,14 +12,30 @@ class PosApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected User $adminUser;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        $this->adminUser = User::create([
+            'name' => 'Admin POS',
+            'username' => 'admin_pos',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+        ]);
+        $this->adminUser->assignRole('admin');
+    }
+
     public function test_product_can_be_created(): void
     {
-        $response = $this->postJson('/api/products', [
-            'nama' => 'Teh Botol',
-            'merek' => 'Sosro',
-            'stok' => 12,
-            'harga' => 5000,
-        ]);
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson('/api/v1/products', [
+                'nama' => 'Teh Botol',
+                'merek' => 'Sosro',
+                'stok' => 12,
+                'harga' => 5000,
+            ]);
 
         $response
             ->assertCreated()
@@ -33,7 +51,8 @@ class PosApiTest extends TestCase
 
     public function test_product_payload_is_required(): void
     {
-        $this->postJson('/api/products')
+        $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson('/api/v1/products')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['nama']);
     }
@@ -45,37 +64,44 @@ class PosApiTest extends TestCase
             'merek' => 'Raja Lele',
             'stok' => 10,
             'harga' => 8000,
+            'status' => 'active',
         ]);
 
-        $response = $this->postJson('/api/sales', [
-            'cashier_name' => 'Kasir 1',
-            'payment_method' => 'cash',
-            'discount' => 1000,
-            'tax' => 500,
-            'paid' => 20000,
-            'items' => [
-                ['product_id' => $product->id, 'quantity' => 2],
-            ],
-        ]);
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'diskon' => 1000,
+                'pajak' => 500,
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+            ]);
 
-        $response
-            ->assertCreated()
+        $response->assertCreated();
+        $trxId = $response->json('data.id');
+
+        $payResponse = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
+                'nominal_bayar' => 20000,
+            ]);
+
+        $payResponse
+            ->assertOk()
             ->assertJsonPath('data.subtotal', 16000)
-            ->assertJsonPath('data.discount', 1000)
-            ->assertJsonPath('data.tax', 500)
+            ->assertJsonPath('data.diskon', 1000)
+            ->assertJsonPath('data.pajak', 500)
             ->assertJsonPath('data.total', 15500)
-            ->assertJsonPath('data.paid', 20000)
-            ->assertJsonPath('data.change_amount', 4500)
-            ->assertJsonPath('data.items.0.product_name', 'Beras 1kg');
+            ->assertJsonPath('data.nominal_bayar', 20000)
+            ->assertJsonPath('data.kembalian', 4500)
+            ->assertJsonPath('data.items.0.nama_produk', 'Beras 1kg');
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
             'stok' => 8,
         ]);
 
-        $this->assertDatabaseHas('sale_items', [
+        $this->assertDatabaseHas('transaction_items', [
             'product_id' => $product->id,
-            'quantity' => 2,
+            'kuantitas' => 2,
             'subtotal' => 16000,
         ]);
     }
@@ -87,16 +113,25 @@ class PosApiTest extends TestCase
             'merek' => 'Gulaku',
             'stok' => 1,
             'harga' => 15000,
+            'status' => 'active',
         ]);
 
-        $response = $this->postJson('/api/sales', [
-            'paid' => 30000,
-            'items' => [
-                ['product_id' => $product->id, 'quantity' => 2],
-            ],
-        ]);
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+            ]);
 
-        $response->assertUnprocessable();
+        $response->assertCreated();
+        $trxId = $response->json('data.id');
+
+        $payResponse = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
+                'nominal_bayar' => 30000,
+            ]);
+
+        $payResponse->assertUnprocessable();
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
@@ -111,16 +146,26 @@ class PosApiTest extends TestCase
             'merek' => 'Lifebuoy',
             'stok' => 20,
             'harga' => 4000,
+            'status' => 'active',
         ]);
 
-        $this->postJson('/api/sales', [
-            'paid' => 10000,
-            'items' => [
-                ['product_id' => $product->id, 'quantity' => 2],
-            ],
-        ])->assertCreated();
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2],
+                ],
+            ]);
 
-        $this->getJson('/api/reports/summary')
+        $response->assertCreated();
+        $trxId = $response->json('data.id');
+
+        $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
+                'nominal_bayar' => 10000,
+            ])->assertOk();
+
+        $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/v1/reports/summary')
             ->assertOk()
             ->assertJsonPath('sales_count', 1)
             ->assertJsonPath('items_sold', 2)

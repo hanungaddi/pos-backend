@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Auth\AuthController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\SaleController;
+use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\TransactionController;
+use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
 
 // Auth Routes (V1)
@@ -29,6 +30,52 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('users', UserController::class);
     });
 
+    // Product V1 Routes
+    Route::middleware(['auth:sanctum'])->group(function () {
+        // Authenticated Read for All (Kasir, Supervisor, Manajer, Admin)
+        Route::get('products', [ProductController::class, 'index']);
+        Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
+        Route::get('products/{product}', [ProductController::class, 'show']);
+
+        // Manage (Supervisor, Manajer, Admin)
+        Route::middleware(['permission:manage_products'])->group(function () {
+            Route::post('products', [ProductController::class, 'store']);
+            Route::put('products/{product}', [ProductController::class, 'update']);
+            Route::delete('products/{product}', [ProductController::class, 'destroy']);
+            Route::patch('products/{product}/status', [ProductController::class, 'changeStatus']);
+        });
+    });
+
+    // Transaction & Report Management Routes (V1)
+    Route::middleware(['auth:sanctum'])->group(function () {
+        // Cashier+ Operations (create_sales)
+        Route::middleware(['permission:create_sales'])->group(function () {
+            Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
+            Route::get('transactions/on-hold', [TransactionController::class, 'listOnHold']);
+            Route::post('transactions', [TransactionController::class, 'store']);
+            Route::get('transactions/{transaction}', [TransactionController::class, 'show']);
+            Route::post('transactions/{transaction}/items', [TransactionController::class, 'addItem']);
+            Route::put('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'updateItem']);
+            Route::delete('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'removeItem']);
+            Route::post('transactions/{transaction}/hold', [TransactionController::class, 'hold']);
+            Route::post('transactions/{transaction}/recall', [TransactionController::class, 'recall']);
+            Route::post('transactions/{transaction}/pay/cash', [TransactionController::class, 'payCash']);
+            Route::post('transactions/{transaction}/pay/card', [TransactionController::class, 'payCard']);
+            Route::post('transactions/{transaction}/pay/split', [TransactionController::class, 'paySplit']);
+        });
+
+        // Supervisor+ Operations (manage_sales)
+        Route::middleware(['permission:manage_sales'])->group(function () {
+            Route::post('transactions/{transaction}/void', [TransactionController::class, 'void']);
+        });
+
+        // Reports (view_reports)
+        Route::middleware(['permission:view_reports'])->prefix('reports')->group(function () {
+            Route::get('summary', [ReportController::class, 'summary']);
+            Route::get('sales/daily', [ReportController::class, 'daily']);
+        });
+    });
+
     // Inventory Management Routes
     Route::middleware(['auth:sanctum'])->prefix('inventory')->group(function () {
         // Movements (Supervisor+)
@@ -53,7 +100,3 @@ Route::prefix('v1')->group(function () {
     });
 });
 
-Route::apiResource('products', ProductController::class);
-
-Route::get('reports/summary', [SaleController::class, 'summary']);
-Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
