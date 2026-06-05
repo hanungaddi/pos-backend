@@ -17,7 +17,7 @@ class StockOpnameController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = StockOpname::query()->with(['user']);
+        $query = StockOpname::query()->with(['user', 'items.product']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
