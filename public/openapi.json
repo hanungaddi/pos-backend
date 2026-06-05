@@ -1,0 +1,882 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Tumbas POS API",
+    "description": "Minimal point of sale API for products, checkout, sales history, and sales summary.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current host"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Products",
+      "description": "Product catalog and stock management"
+    },
+    {
+      "name": "Sales",
+      "description": "Checkout and sales history"
+    },
+    {
+      "name": "Reports",
+      "description": "Sales summary metrics"
+    }
+  ],
+  "paths": {
+    "/api/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "List products",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search keyword for product name or brand.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "kopi"
+            }
+          },
+          {
+            "name": "low_stock",
+            "in": "query",
+            "description": "When true, return products with stock less than or equal to 5.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create one or many products",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ProductCreate"
+                  },
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/components/schemas/ProductCreate"
+                    }
+                  }
+                ]
+              },
+              "examples": {
+                "single": {
+                  "summary": "Single product",
+                  "value": {
+                    "nama": "Teh Botol",
+                    "merek": "Sosro",
+                    "stok": 12,
+                    "harga": 5000
+                  }
+                },
+                "bulk": {
+                  "summary": "Bulk products",
+                  "value": [
+                    {
+                      "nama": "Kopi Sachet",
+                      "merek": "Kapal Api",
+                      "stok": 40,
+                      "harga": 1500
+                    },
+                    {
+                      "nama": "Mi Instan Goreng",
+                      "merek": "Indomie",
+                      "stok": 30,
+                      "harga": 3500
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/products/{product}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get product detail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProductId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Products"],
+        "summary": "Replace or update product",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProductId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdate"
+              },
+              "example": {
+                "nama": "Teh Botol",
+                "merek": "Sosro",
+                "stok": 20,
+                "harga": 5500
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Products"],
+        "summary": "Partially update product",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProductId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdate"
+              },
+              "example": {
+                "stok": 20
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Products"],
+        "summary": "Delete product",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProductId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Product deleted."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/sales": {
+      "get": {
+        "tags": ["Sales"],
+        "summary": "List sales",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FromDate"
+          },
+          {
+            "$ref": "#/components/parameters/ToDate"
+          },
+          {
+            "$ref": "#/components/parameters/PaymentMethod"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sales retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Sale"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Sales"],
+        "summary": "Checkout sale",
+        "description": "Creates a sale, stores item snapshots, validates stock, and decreases product stock.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaleCreate"
+              },
+              "example": {
+                "cashier_name": "Kasir 1",
+                "payment_method": "cash",
+                "discount": 1000,
+                "tax": 500,
+                "paid": 20000,
+                "items": [
+                  {
+                    "product_id": 1,
+                    "quantity": 2
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sale created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaleCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/sales/{sale}": {
+      "get": {
+        "tags": ["Sales"],
+        "summary": "Get sale detail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SaleId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sale retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sale"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/reports/summary": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get sales summary",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FromDate"
+          },
+          {
+            "$ref": "#/components/parameters/ToDate"
+          },
+          {
+            "$ref": "#/components/parameters/PaymentMethod"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sales summary retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ProductId": {
+        "name": "product",
+        "in": "path",
+        "description": "Product ID.",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "SaleId": {
+        "name": "sale",
+        "in": "path",
+        "description": "Sale ID.",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "FromDate": {
+        "name": "from",
+        "in": "query",
+        "description": "Start date, inclusive.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "example": "2026-06-01"
+        }
+      },
+      "ToDate": {
+        "name": "to",
+        "in": "query",
+        "description": "End date, inclusive.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "example": "2026-06-04"
+        }
+      },
+      "PaymentMethod": {
+        "name": "payment_method",
+        "in": "query",
+        "description": "Filter by payment method.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "example": "cash"
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Validation error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "required": ["id", "nama", "merek", "stok", "harga", "created_at", "updated_at"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nama": {
+            "type": "string",
+            "example": "Teh Botol"
+          },
+          "merek": {
+            "type": "string",
+            "nullable": true,
+            "example": "Sosro"
+          },
+          "stok": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 12
+          },
+          "harga": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ProductCreate": {
+        "type": "object",
+        "required": ["nama", "stok", "harga"],
+        "properties": {
+          "nama": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Teh Botol"
+          },
+          "merek": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true,
+            "example": "Sosro"
+          },
+          "stok": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 12
+          },
+          "harga": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5000
+          }
+        }
+      },
+      "ProductUpdate": {
+        "type": "object",
+        "properties": {
+          "nama": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Teh Botol"
+          },
+          "merek": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true,
+            "example": "Sosro"
+          },
+          "stok": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 20
+          },
+          "harga": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5500
+          }
+        }
+      },
+      "ProductCreateResponse": {
+        "type": "object",
+        "required": ["message", "data"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Produk berhasil ditambahkan"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Product"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "Sale": {
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_number",
+          "payment_method",
+          "subtotal",
+          "discount",
+          "tax",
+          "total",
+          "paid",
+          "change_amount",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "invoice_number": {
+            "type": "string",
+            "example": "TRX-20260604103000-ABCD"
+          },
+          "customer_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Budi"
+          },
+          "cashier_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Kasir 1"
+          },
+          "payment_method": {
+            "type": "string",
+            "example": "cash"
+          },
+          "subtotal": {
+            "type": "integer",
+            "example": 16000
+          },
+          "discount": {
+            "type": "integer",
+            "example": 1000
+          },
+          "tax": {
+            "type": "integer",
+            "example": 500
+          },
+          "total": {
+            "type": "integer",
+            "example": 15500
+          },
+          "paid": {
+            "type": "integer",
+            "example": 20000
+          },
+          "change_amount": {
+            "type": "integer",
+            "example": 4500
+          },
+          "status": {
+            "type": "string",
+            "example": "completed"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleItem"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SaleItem": {
+        "type": "object",
+        "required": ["id", "sale_id", "product_id", "product_name", "price", "quantity", "subtotal"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "sale_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "product_name": {
+            "type": "string",
+            "example": "Beras 1kg"
+          },
+          "price": {
+            "type": "integer",
+            "example": 8000
+          },
+          "quantity": {
+            "type": "integer",
+            "example": 2
+          },
+          "subtotal": {
+            "type": "integer",
+            "example": 16000
+          },
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          }
+        }
+      },
+      "SaleCreate": {
+        "type": "object",
+        "required": ["paid", "items"],
+        "properties": {
+          "customer_name": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true,
+            "example": "Budi"
+          },
+          "cashier_name": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true,
+            "example": "Kasir 1"
+          },
+          "payment_method": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true,
+            "default": "cash",
+            "example": "cash"
+          },
+          "discount": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "example": 1000
+          },
+          "tax": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "example": 500
+          },
+          "paid": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 20000
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/SaleCreateItem"
+            }
+          }
+        }
+      },
+      "SaleCreateItem": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 2
+          }
+        }
+      },
+      "SaleCreateResponse": {
+        "type": "object",
+        "required": ["message", "data"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Transaksi berhasil dibuat"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Sale"
+          }
+        }
+      },
+      "SalesSummary": {
+        "type": "object",
+        "required": [
+          "sales_count",
+          "items_sold",
+          "gross_sales",
+          "discount_total",
+          "tax_total",
+          "net_sales",
+          "top_products"
+        ],
+        "properties": {
+          "sales_count": {
+            "type": "integer",
+            "example": 1
+          },
+          "items_sold": {
+            "type": "integer",
+            "example": 2
+          },
+          "gross_sales": {
+            "type": "integer",
+            "example": 16000
+          },
+          "discount_total": {
+            "type": "integer",
+            "example": 1000
+          },
+          "tax_total": {
+            "type": "integer",
+            "example": 500
+          },
+          "net_sales": {
+            "type": "integer",
+            "example": 15500
+          },
+          "top_products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopProduct"
+            }
+          }
+        }
+      },
+      "TopProduct": {
+        "type": "object",
+        "required": ["product_name", "quantity", "revenue"],
+        "properties": {
+          "product_name": {
+            "type": "string",
+            "example": "Beras 1kg"
+          },
+          "quantity": {
+            "type": "integer",
+            "example": 2
+          },
+          "revenue": {
+            "type": "integer",
+            "example": 16000
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "The nama field is required."
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": {
+              "nama": ["The nama field is required."]
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Not Found"
+          }
+        }
+      }
+    }
+  }
+}
