@@ -434,6 +434,548 @@
         }
       }
     },
+    "/api/v1/inventory/movements": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List stock movements",
+        "description": "Retrieves a paginated list of stock movements. Access is restricted to users with 'view_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "tipe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["sale", "receive", "adjustment", "void", "opname"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockMovement"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/movements/{productId}": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List stock movements by product",
+        "description": "Retrieves movements for a specific product. Access is restricted to users with 'view_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "tipe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["sale", "receive", "adjustment", "void", "opname"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockMovement"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/receiving": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List stock receivings",
+        "description": "Retrieves list of receivings. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search keyword for supplier, invoice number, or billing number.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockReceiving"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Create stock receiving",
+        "description": "Records a new incoming stock from a supplier and increments product stock levels. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockReceivingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockReceiving"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/receiving/{id}": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "Get stock receiving details",
+        "description": "Retrieves detail of a single receiving record. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StockReceiving"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/adjustment": {
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Manual stock adjustment",
+        "description": "Manually adjusts the stock of a product (damage, loss, etc.). Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockAdjustmentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockMovement"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/opname": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List stock opnames",
+        "description": "Retrieves list of opnames. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "completed"]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockOpname"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Create draft stock opname",
+        "description": "Records a new draft stock opname. Does not modify actual product stock. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockOpnameCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockOpname"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/opname/{id}": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "Get stock opname details",
+        "description": "Retrieves detail of a single opname record. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/StockOpname"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Inventory"],
+        "summary": "Update and finalize stock opname",
+        "description": "Updates a draft stock opname. If status is 'completed', finalizes it, adjusts product stock levels, and records stock movements. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockOpnameUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/StockOpname"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error / Opname already finalized"
+          }
+        }
+      }
+    },
     "/api/products": {
       "get": {
         "tags": ["Products"],
@@ -1465,6 +2007,378 @@
             "type": "integer",
             "nullable": true,
             "example": 1
+          }
+        }
+      },
+      "StockMovement": {
+        "type": "object",
+        "required": ["id", "product_id", "tipe", "kuantitas", "stok_sebelum", "stok_sesudah"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "tipe": {
+            "type": "string",
+            "enum": ["sale", "receive", "adjustment", "void", "opname"],
+            "example": "receive"
+          },
+          "kuantitas": {
+            "type": "integer",
+            "example": 10
+          },
+          "stok_sebelum": {
+            "type": "integer",
+            "example": 5
+          },
+          "stok_sesudah": {
+            "type": "integer",
+            "example": 15
+          },
+          "referensi_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "referensi_tipe": {
+            "type": "string",
+            "nullable": true,
+            "example": "receiving"
+          },
+          "alasan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Penerimaan barang dari supplier"
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StockReceiving": {
+        "type": "object",
+        "required": ["id", "nomor_penerimaan", "items"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "nomor_penerimaan": {
+            "type": "string",
+            "example": "RCV-20260605-ABCD"
+          },
+          "supplier": {
+            "type": "string",
+            "nullable": true,
+            "example": "PT Sembako Makmur"
+          },
+          "nomor_faktur": {
+            "type": "string",
+            "nullable": true,
+            "example": "INV/12345"
+          },
+          "catatan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Barang masuk rutin"
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockReceivingItem"
+            }
+          }
+        }
+      },
+      "StockReceivingItem": {
+        "type": "object",
+        "required": ["id", "stock_receiving_id", "product_id", "kuantitas"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stock_receiving_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "kuantitas": {
+            "type": "integer",
+            "example": 10
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StockReceivingCreate": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "supplier": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "PT Sembako Makmur"
+          },
+          "nomor_faktur": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "INV/12345"
+          },
+          "catatan": {
+            "type": "string",
+            "example": "Barang masuk rutin"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["product_id", "kuantitas"],
+              "properties": {
+                "product_id": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "kuantitas": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "example": 10
+                }
+              }
+            }
+          }
+        }
+      },
+      "StockAdjustmentCreate": {
+        "type": "object",
+        "required": ["product_id", "kuantitas", "alasan"],
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "kuantitas": {
+            "type": "integer",
+            "example": -3
+          },
+          "alasan": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "Beras tumpah dan basah"
+          }
+        }
+      },
+      "StockOpname": {
+        "type": "object",
+        "required": ["id", "nomor_opname", "status", "items"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "store_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "nomor_opname": {
+            "type": "string",
+            "example": "OPN-20260605-EFGH"
+          },
+          "catatan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Opname akhir bulan"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "completed"],
+            "example": "draft"
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockOpnameItem"
+            }
+          }
+        }
+      },
+      "StockOpnameItem": {
+        "type": "object",
+        "required": ["id", "stock_opname_id", "product_id", "stok_sistem", "stok_fisik", "selisih"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stock_opname_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "stok_sistem": {
+            "type": "integer",
+            "example": 10
+          },
+          "stok_fisik": {
+            "type": "integer",
+            "example": 12
+          },
+          "selisih": {
+            "type": "integer",
+            "example": 2
+          },
+          "alasan": {
+            "type": "string",
+            "nullable": true,
+            "example": "Selisih temuan di rak"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StockOpnameCreate": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "catatan": {
+            "type": "string",
+            "example": "Opname akhir bulan"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["product_id", "stok_fisik"],
+              "properties": {
+                "product_id": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "stok_fisik": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 12
+                },
+                "alasan": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "example": "Selisih temuan di rak"
+                }
+              }
+            }
+          }
+        }
+      },
+      "StockOpnameUpdate": {
+        "type": "object",
+        "required": ["status", "items"],
+        "properties": {
+          "catatan": {
+            "type": "string",
+            "example": "Opname akhir bulan"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "completed"],
+            "example": "completed"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["product_id", "stok_fisik"],
+              "properties": {
+                "product_id": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "stok_fisik": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 12
+                },
+                "alasan": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "example": "Selisih temuan di rak (terverifikasi)"
+                }
+              }
+            }
           }
         }
       }

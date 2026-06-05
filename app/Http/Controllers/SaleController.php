@@ -37,7 +37,7 @@ class SaleController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $sale = DB::transaction(function () use ($validated) {
+        $sale = DB::transaction(function () use ($validated, $request) {
             $items = collect($validated['items'])
                 ->groupBy('product_id')
                 ->map(fn ($items, $productId) => [
@@ -118,7 +118,25 @@ class SaleController extends Controller
 
             foreach ($saleItems as $item) {
                 $sale->items()->create($item['data']);
-                $item['product']->decrement('stok', $item['data']['quantity']);
+                
+                $product = $item['product'];
+                $stokSebelum = $product->stok;
+                $stokSesudah = $stokSebelum - $item['data']['quantity'];
+
+                $product->decrement('stok', $item['data']['quantity']);
+
+                \App\Models\StockMovement::create([
+                    'store_id' => $request->user()?->store_id,
+                    'product_id' => $product->id,
+                    'tipe' => 'sale',
+                    'kuantitas' => -$item['data']['quantity'],
+                    'stok_sebelum' => $stokSebelum,
+                    'stok_sesudah' => $stokSesudah,
+                    'referensi_id' => $sale->id,
+                    'referensi_tipe' => 'sale',
+                    'alasan' => 'Transaksi penjualan ' . $sale->invoice_number,
+                    'user_id' => $request->user()?->id,
+                ]);
             }
 
             return $sale->load('items');
