@@ -13,3 +13,10 @@ Route::get('/docs/openapi.json', function () {
 
     return response()->json($openapi);
 })->name('docs.openapi');
+
+Route::get('/login', function () {
+    return response()->json([
+        'message' => 'Unauthenticated.'
+    ], 401);
+})->name('login');
+

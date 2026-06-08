@@ -121,6 +121,16 @@ class AuthTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_unauthenticated_request_to_api_returns_json_even_without_accept_header(): void
+    {
+        $response = $this->get('/api/v1/users');
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'message' => 'Unauthenticated.'
+            ]);
+    }
+
     public function test_authenticated_user_can_logout(): void
     {
         $user = User::create([
