@@ -62,8 +62,12 @@ class UserManagementTest extends TestCase
                         'permissions',
                     ]
                 ],
-                'links',
-                'meta'
+                'meta' => [
+                    'current_page',
+                    'last_page',
+                    'per_page',
+                    'total',
+                ]
             ])
             ->assertJsonCount(2, 'data'); // Total 2 users seeded in setUp
     }

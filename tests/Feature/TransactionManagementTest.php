@@ -345,14 +345,14 @@ class TransactionManagementTest extends TestCase
         $this->actingAs($this->cashierUser, 'sanctum')
             ->getJson('/api/v1/transactions')
             ->assertOk()
-            ->assertJsonPath('total', 1)
+            ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.user_id', $this->cashierUser->id);
 
         // 4. Supervisor requests history (should see both)
         $this->actingAs($this->supervisorUser, 'sanctum')
             ->getJson('/api/v1/transactions')
             ->assertOk()
-            ->assertJsonPath('total', 2);
+            ->assertJsonPath('meta.total', 2);
     }
 
     public function test_reports_api_endpoints(): void
@@ -395,23 +395,23 @@ class TransactionManagementTest extends TestCase
         $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/v1/reports/summary')
             ->assertOk()
-            ->assertJsonPath('sales_count', 2)
-            ->assertJsonPath('items_sold', 4)
-            ->assertJsonPath('net_sales', 31000)
-            ->assertJsonPath('top_products.0.product_name', 'Aqua 600ml')
-            ->assertJsonPath('top_products.0.quantity', 3)
-            ->assertJsonPath('top_products.1.product_name', 'Pringles 110g')
-            ->assertJsonPath('top_products.1.quantity', 1);
+            ->assertJsonPath('data.sales_count', 2)
+            ->assertJsonPath('data.items_sold', 4)
+            ->assertJsonPath('data.net_sales', 31000)
+            ->assertJsonPath('data.top_products.0.product_name', 'Aqua 600ml')
+            ->assertJsonPath('data.top_products.0.quantity', 3)
+            ->assertJsonPath('data.top_products.1.product_name', 'Pringles 110g')
+            ->assertJsonPath('data.top_products.1.quantity', 1);
 
         // 5. Call /reports/sales/daily
         $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/v1/reports/sales/daily')
             ->assertOk()
-            ->assertJsonPath('total_sales', 31000)
-            ->assertJsonPath('transactions_count', 2)
-            ->assertJsonPath('average_transaction_value', 15500)
-            ->assertJsonPath('payment_methods.cash.total', 9000)
-            ->assertJsonPath('payment_methods.card.total', 22000)
-            ->assertJsonPath('void_count', 0);
+            ->assertJsonPath('data.total_sales', 31000)
+            ->assertJsonPath('data.transactions_count', 2)
+            ->assertJsonPath('data.average_transaction_value', 15500)
+            ->assertJsonPath('data.payment_methods.cash.total', 9000)
+            ->assertJsonPath('data.payment_methods.card.total', 22000)
+            ->assertJsonPath('data.void_count', 0);
     }
 }

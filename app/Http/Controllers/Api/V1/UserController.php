@@ -16,17 +16,18 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $query = User::query()->with(['roles', 'permissions']);
 
         // Search by name, username, or email
-        if ($request->filled('q')) {
-            $search = $request->input('q');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+        $search = $request->input('search') ?? $request->input('q');
+        if (!empty($search)) {
+            $keyword = (string) $search;
+            $query->where(function ($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")
+                  ->orWhere('username', 'like', "%{$keyword}%")
+                  ->orWhere('email', 'like', "%{$keyword}%");
             });
         }
 
@@ -42,9 +43,23 @@ class UserController extends Controller
             $query->where('status', $status);
         }
 
-        $users = $query->paginate($request->input('per_page', 15));
+        // Sorting
+        $sortBy = $request->input('sort_by', 'name');
+        $sortOrder = strtolower($request->input('sort_order', 'asc')) === 'desc' ? 'desc' : 'asc';
+        
+        $allowedSortColumns = ['name', 'username', 'email', 'created_at'];
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('name', 'asc');
+        }
 
-        return UserResource::collection($users);
+        $users = $query->paginate($request->input('per_page', 15));
+        
+        // Transform the paginated collection items to UserResource
+        $users->getCollection()->transform(fn($user) => new UserResource($user));
+
+        return $this->responsePaginated($users);
     }
 
     /**
@@ -63,10 +78,11 @@ class UserController extends Controller
 
         $user->syncRoles($request->roles);
 
-        return response()->json([
-            'message' => 'User berhasil ditambahkan.',
-            'data' => new UserResource($user)
-        ], 201);
+        return $this->responseSuccess(
+            new UserResource($user),
+            'User berhasil ditambahkan.',
+            201
+        );
     }
 
     /**
@@ -75,9 +91,7 @@ class UserController extends Controller
     public function show(User $user): JsonResponse
     {
         $user->load(['roles', 'permissions']);
-        return response()->json([
-            'data' => new UserResource($user)
-        ]);
+        return $this->responseSuccess(new UserResource($user), 'Detail user berhasil dimuat.');
     }
 
     /**
@@ -100,10 +114,10 @@ class UserController extends Controller
         $user->update($userData);
         $user->syncRoles($request->roles);
 
-        return response()->json([
-            'message' => 'User berhasil diperbarui.',
-            'data' => new UserResource($user->fresh(['roles', 'permissions']))
-        ]);
+        return $this->responseSuccess(
+            new UserResource($user->fresh(['roles', 'permissions'])),
+            'User berhasil diperbarui.'
+        );
     }
 
     /**
@@ -114,8 +128,6 @@ class UserController extends Controller
         // For POS audits, we deactivate rather than hard delete users
         $user->update(['status' => 'inactive']);
 
-        return response()->json([
-            'message' => 'User berhasil dinonaktifkan.'
-        ]);
+        return $this->responseSuccess(new UserResource($user), 'User berhasil dinonaktifkan.');
     }
 }

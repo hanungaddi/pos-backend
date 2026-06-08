@@ -35,7 +35,7 @@ class ReportController extends Controller
                 'revenue' => (int) $item->revenue,
             ]);
 
-        return response()->json([
+        return $this->responseSuccess([
             'sales_count' => (int) (clone $salesQuery)->count(),
             'items_sold' => (int) (clone $itemsQuery)->sum('kuantitas'),
             'gross_sales' => (int) (clone $salesQuery)->sum('subtotal'),
@@ -43,7 +43,7 @@ class ReportController extends Controller
             'tax_total' => (int) (clone $salesQuery)->sum('pajak'),
             'net_sales' => (int) (clone $salesQuery)->sum('total'),
             'top_products' => $topProducts,
-        ]);
+        ], 'Ringkasan laporan penjualan berhasil diambil.');
     }
 
     public function daily(Request $request): JsonResponse
@@ -107,7 +107,7 @@ class ReportController extends Controller
             ->whereDate('created_at', $dateString)
             ->count();
 
-        return response()->json([
+        return $this->responseSuccess([
             'date' => $dateString,
             'total_sales' => $totalSales,
             'transactions_count' => $txCount,
@@ -115,7 +115,7 @@ class ReportController extends Controller
             'payment_methods' => $paymentMethods,
             'top_products' => $topProducts,
             'void_count' => $voidCount,
-        ]);
+        ], 'Laporan harian penjualan berhasil diambil.');
     }
 
     private function applyFilters(Builder $query, Request $request): Builder

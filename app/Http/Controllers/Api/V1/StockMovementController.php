@@ -29,9 +29,19 @@ class StockMovementController extends Controller
             $query->whereDate('created_at', '<=', $request->date('to')->toDateString());
         }
 
-        $movements = $query->latest()->paginate($request->integer('per_page', 15));
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSortColumns = ['created_at', 'tipe', 'kuantitas', 'stok_sebelum', 'stok_sesudah'];
 
-        return response()->json($movements);
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $movements = $query->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($movements);
     }
 
     public function showByProduct(int $productId, Request $request): JsonResponse
@@ -44,8 +54,18 @@ class StockMovementController extends Controller
             $query->where('tipe', $request->string('tipe'));
         }
 
-        $movements = $query->latest()->paginate($request->integer('per_page', 15));
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSortColumns = ['created_at', 'tipe', 'kuantitas', 'stok_sebelum', 'stok_sesudah'];
 
-        return response()->json($movements);
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $movements = $query->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($movements);
     }
 }

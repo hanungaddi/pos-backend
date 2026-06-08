@@ -42,9 +42,6 @@ class StockAdjustmentController extends Controller
             return $movement->load('product');
         });
 
-        return response()->json([
-            'message' => 'Penyesuaian stok berhasil disimpan.',
-            'data' => $movement
-        ], 201);
+        return $this->responseSuccess($movement, 'Penyesuaian stok berhasil disimpan.', 201);
     }
 }

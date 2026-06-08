@@ -23,14 +23,25 @@ class StockOpnameController extends Controller
             $query->where('status', $request->string('status'));
         }
 
-        if ($request->filled('q')) {
-            $search = $request->string('q');
-            $query->where('nomor_opname', 'like', "%{$search}%");
+        $search = $request->input('search') ?? $request->input('q');
+        if (!empty($search)) {
+            $keyword = (string) $search;
+            $query->where('nomor_opname', 'like', "%{$keyword}%");
         }
 
-        $opnames = $query->latest()->paginate($request->integer('per_page', 15));
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSortColumns = ['created_at', 'nomor_opname', 'status'];
 
-        return response()->json($opnames);
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $opnames = $query->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($opnames);
     }
 
     public function store(StockOpnameStoreRequest $request): JsonResponse
@@ -69,10 +80,7 @@ class StockOpnameController extends Controller
             return $opname->load(['items.product', 'user']);
         });
 
-        return response()->json([
-            'message' => 'Draft stock opname berhasil disimpan.',
-            'data' => $opname
-        ], 201);
+        return $this->responseSuccess($opname, 'Draft stock opname berhasil disimpan.', 201);
     }
 
     public function show(int $id): JsonResponse
@@ -83,7 +91,7 @@ class StockOpnameController extends Controller
             return response()->json(['message' => 'Data stock opname tidak ditemukan.'], 404);
         }
 
-        return response()->json(['data' => $opname]);
+        return $this->responseSuccess($opname, 'Detail stock opname.');
     }
 
     public function update(StockOpnameUpdateRequest $request, int $id): JsonResponse
@@ -152,14 +160,11 @@ class StockOpnameController extends Controller
             return $opname->load(['items.product', 'user']);
         });
 
-        $message = $validated['status'] === 'completed' 
-            ? 'Stock opname berhasil diselesaikan dan stok telah disesuaikan.' 
+        $message = $validated['status'] === 'completed'
+            ? 'Stock opname berhasil diselesaikan dan stok telah disesuaikan.'
             : 'Draft stock opname berhasil diperbarui.';
 
-        return response()->json([
-            'message' => $message,
-            'data' => $updatedOpname
-        ]);
+        return $this->responseSuccess($updatedOpname, $message);
     }
 
     private function generateNomorOpname(): string

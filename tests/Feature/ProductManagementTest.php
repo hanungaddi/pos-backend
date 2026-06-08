@@ -65,7 +65,7 @@ class ProductManagementTest extends TestCase
             ->getJson("/api/v1/products/barcode/{$this->activeProduct->barcode}");
 
         $response->assertStatus(200)
-            ->assertJsonPath('nama', 'Kopi Sachet');
+            ->assertJsonPath('data.nama', 'Kopi Sachet');
     }
 
     public function test_cashier_cannot_lookup_inactive_product_by_barcode(): void
@@ -83,7 +83,7 @@ class ProductManagementTest extends TestCase
             ->getJson("/api/v1/products/barcode/{$this->inactiveProduct->barcode}");
 
         $response->assertStatus(200)
-            ->assertJsonPath('nama', 'Susu Kaleng');
+            ->assertJsonPath('data.nama', 'Susu Kaleng');
     }
 
     public function test_lookup_missing_barcode_returns_404(): void

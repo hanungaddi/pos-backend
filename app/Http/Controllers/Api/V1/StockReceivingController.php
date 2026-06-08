@@ -18,18 +18,29 @@ class StockReceivingController extends Controller
     {
         $query = StockReceiving::query()->with(['user']);
 
-        if ($request->filled('q')) {
-            $search = $request->string('q');
-            $query->where(function ($q) use ($search) {
-                $q->where('nomor_penerimaan', 'like', "%{$search}%")
-                  ->orWhere('supplier', 'like', "%{$search}%")
-                  ->orWhere('nomor_faktur', 'like', "%{$search}%");
+        $search = $request->input('search') ?? $request->input('q');
+        if (!empty($search)) {
+            $keyword = (string) $search;
+            $query->where(function ($q) use ($keyword) {
+                $q->where('nomor_penerimaan', 'like', "%{$keyword}%")
+                  ->orWhere('supplier', 'like', "%{$keyword}%")
+                  ->orWhere('nomor_faktur', 'like', "%{$keyword}%");
             });
         }
 
-        $receivings = $query->latest()->paginate($request->integer('per_page', 15));
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSortColumns = ['created_at', 'nomor_penerimaan', 'supplier', 'nomor_faktur'];
 
-        return response()->json($receivings);
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $receivings = $query->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($receivings);
     }
 
     public function store(StockReceivingRequest $request): JsonResponse
@@ -83,10 +94,7 @@ class StockReceivingController extends Controller
             return $receiving->load(['items.product', 'user']);
         });
 
-        return response()->json([
-            'message' => 'Penerimaan barang berhasil disimpan.',
-            'data' => $receiving
-        ], 201);
+        return $this->responseSuccess($receiving, 'Penerimaan barang berhasil disimpan.', 201);
     }
 
     public function show(int $id): JsonResponse
@@ -97,7 +105,7 @@ class StockReceivingController extends Controller
             return response()->json(['message' => 'Data penerimaan tidak ditemukan.'], 404);
         }
 
-        return response()->json(['data' => $receiving]);
+        return $this->responseSuccess($receiving, 'Detail penerimaan barang.');
     }
 
     private function generateNomorPenerimaan(): string

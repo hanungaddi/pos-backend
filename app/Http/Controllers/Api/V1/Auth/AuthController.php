@@ -43,7 +43,13 @@ class AuthController extends Controller
             'message' => 'Login berhasil.',
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'user' => new UserResource($user)
+            'user' => new UserResource($user),
+            'data' => [
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => new UserResource($user),
+            ],
+            'status' => 'success'
         ]);
     }
 
@@ -55,7 +61,9 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Logout berhasil.'
+            'data' => null,
+            'message' => 'Logout berhasil.',
+            'status' => 'success'
         ]);
     }
 
@@ -65,7 +73,12 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => new UserResource($request->user())
+            'user' => new UserResource($request->user()),
+            'data' => [
+                'user' => new UserResource($request->user())
+            ],
+            'message' => 'Profil berhasil dimuat.',
+            'status' => 'success'
         ]);
     }
 }

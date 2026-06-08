@@ -19,8 +19,10 @@ class ProductController extends Controller
             $query->where('status', 'active');
         }
 
-        if ($request->filled('q')) {
-            $keyword = (string) $request->string('q');
+        // Support both 'search' (standardized) and 'q' (fallback)
+        $search = $request->input('search') ?? $request->input('q');
+        if (!empty($search)) {
+            $keyword = (string) $search;
 
             $query->where(function ($query) use ($keyword) {
                 $query->where('nama', 'like', "%{$keyword}%")
@@ -33,9 +35,21 @@ class ProductController extends Controller
             $query->where('stok', '<=', 5);
         }
 
-        $products = $query->orderBy('nama')->get();
+        // Sorting
+        $sortBy = $request->input('sort_by', 'nama');
+        $sortOrder = strtolower($request->input('sort_order', 'asc')) === 'desc' ? 'desc' : 'asc';
+        
+        $allowedSortColumns = ['nama', 'harga', 'stok', 'created_at'];
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('nama', 'asc');
+        }
 
-        return response()->json($products);
+        // Paginate, default to 1000 for checkout/offline-first support
+        $products = $query->paginate($request->integer('per_page', 1000));
+
+        return $this->responsePaginated($products);
     }
 
     public function store(Request $request): JsonResponse
@@ -63,15 +77,16 @@ class ProductController extends Controller
             ->map(fn (array $product) => Product::create($product))
             ->values();
 
-        return response()->json([
-            'message' => 'Produk berhasil ditambahkan',
-            'data' => $isBulk ? $products : $products->first(),
-        ], 201);
+        return $this->responseSuccess(
+            $isBulk ? $products : $products->first(),
+            'Produk berhasil ditambahkan.',
+            201
+        );
     }
 
     public function show(Product $product): JsonResponse
     {
-        return response()->json($product);
+        return $this->responseSuccess($product, 'Detail produk berhasil dimuat.');
     }
 
     public function update(Request $request, Product $product): JsonResponse
@@ -87,14 +102,14 @@ class ProductController extends Controller
 
         $product->update($validated);
 
-        return response()->json($product);
+        return $this->responseSuccess($product, 'Produk berhasil diperbarui.');
     }
 
     public function destroy(Product $product): JsonResponse
     {
         $product->delete();
 
-        return response()->json(null, 204);
+        return $this->responseSuccess(null, 'Produk berhasil dihapus.');
     }
 
     public function changeStatus(Request $request, Product $product): JsonResponse
@@ -105,10 +120,7 @@ class ProductController extends Controller
 
         $product->update(['status' => $validated['status']]);
 
-        return response()->json([
-            'message' => 'Status produk berhasil diperbarui.',
-            'data' => $product
-        ]);
+        return $this->responseSuccess($product, 'Status produk berhasil diperbarui.');
     }
 
     public function showByBarcode(string $barcode, Request $request): JsonResponse
@@ -124,6 +136,6 @@ class ProductController extends Controller
             return response()->json(['message' => 'Produk tidak aktif.'], 403);
         }
 
-        return response()->json($product);
+        return $this->responseSuccess($product, 'Produk berhasil ditemukan.');
     }
 }

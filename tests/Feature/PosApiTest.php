@@ -167,10 +167,10 @@ class PosApiTest extends TestCase
         $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/v1/reports/summary')
             ->assertOk()
-            ->assertJsonPath('sales_count', 1)
-            ->assertJsonPath('items_sold', 2)
-            ->assertJsonPath('gross_sales', 8000)
-            ->assertJsonPath('net_sales', 8000)
-            ->assertJsonPath('top_products.0.product_name', 'Sabun Mandi');
+            ->assertJsonPath('data.sales_count', 1)
+            ->assertJsonPath('data.items_sold', 2)
+            ->assertJsonPath('data.gross_sales', 8000)
+            ->assertJsonPath('data.net_sales', 8000)
+            ->assertJsonPath('data.top_products.0.product_name', 'Sabun Mandi');
     }
 }

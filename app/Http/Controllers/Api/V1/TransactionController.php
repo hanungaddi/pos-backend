@@ -38,14 +38,27 @@ class TransactionController extends Controller
             $query->whereDate('created_at', '<=', $request->date('to')->toDateString());
         }
 
-        if ($request->filled('q')) {
-            $search = $request->string('q');
-            $query->where('nomor_transaksi', 'like', "%{$search}%");
+        // Support search (standardized) and q (fallback)
+        $search = $request->input('search') ?? $request->input('q');
+        if (!empty($search)) {
+            $keyword = (string) $search;
+            $query->where('nomor_transaksi', 'like', "%{$keyword}%");
         }
 
-        $transactions = $query->latest()->paginate($request->integer('per_page', 15));
+        // Sorting
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        
+        $allowedSortColumns = ['nomor_transaksi', 'total', 'created_at', 'status'];
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->latest();
+        }
 
-        return response()->json($transactions);
+        $transactions = $query->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($transactions);
     }
 
     public function store(Request $request): JsonResponse
@@ -119,10 +132,7 @@ class TransactionController extends Controller
             return $transaction->load(['items.product', 'user']);
         });
 
-        return response()->json([
-            'message' => 'Transaksi berhasil dibuat',
-            'data' => $transaction,
-        ], 201);
+        return $this->responseSuccess($transaction, 'Transaksi berhasil dibuat.', 201);
     }
 
     public function show(Request $request, $id): JsonResponse
@@ -140,7 +150,7 @@ class TransactionController extends Controller
             return response()->json(['message' => 'Transaksi tidak ditemukan.'], 404);
         }
 
-        return response()->json(['data' => $transaction]);
+        return $this->responseSuccess($transaction, 'Detail transaksi berhasil dimuat.');
     }
 
     public function addItem(Request $request, $id): JsonResponse
@@ -197,10 +207,7 @@ class TransactionController extends Controller
             $this->recalculateTotals($transaction);
         });
 
-        return response()->json([
-            'message' => 'Item berhasil ditambahkan',
-            'data' => $transaction->load('items.product'),
-        ]);
+        return $this->responseSuccess($transaction->load('items.product'), 'Item berhasil ditambahkan.');
     }
 
     public function updateItem(Request $request, $id, $itemId): JsonResponse
@@ -228,10 +235,7 @@ class TransactionController extends Controller
             $this->recalculateTotals($transaction);
         });
 
-        return response()->json([
-            'message' => 'Item berhasil diperbarui',
-            'data' => $transaction->load('items.product'),
-        ]);
+        return $this->responseSuccess($transaction->load('items.product'), 'Item berhasil diperbarui.');
     }
 
     public function removeItem($id, $itemId): JsonResponse
@@ -251,10 +255,7 @@ class TransactionController extends Controller
             $this->recalculateTotals($transaction);
         });
 
-        return response()->json([
-            'message' => 'Item berhasil dihapus',
-            'data' => $transaction->load('items.product'),
-        ]);
+        return $this->responseSuccess($transaction->load('items.product'), 'Item berhasil dihapus.');
     }
 
     public function hold($id): JsonResponse
@@ -270,10 +271,7 @@ class TransactionController extends Controller
 
         $transaction->update(['status' => 'hold']);
 
-        return response()->json([
-            'message' => 'Transaksi berhasil ditunda',
-            'data' => $transaction,
-        ]);
+        return $this->responseSuccess($transaction, 'Transaksi berhasil ditunda.');
     }
 
     public function recall($id): JsonResponse
@@ -285,10 +283,7 @@ class TransactionController extends Controller
 
         $transaction->update(['status' => 'draft']);
 
-        return response()->json([
-            'message' => 'Transaksi berhasil dipanggil kembali',
-            'data' => $transaction->load('items.product'),
-        ]);
+        return $this->responseSuccess($transaction->load('items.product'), 'Transaksi berhasil dipanggil kembali.');
     }
 
     public function listOnHold(Request $request): JsonResponse
@@ -298,7 +293,7 @@ class TransactionController extends Controller
             ->latest()
             ->get();
 
-        return response()->json(['data' => $transactions]);
+        return $this->responseSuccess($transactions, 'Daftar transaksi tunda berhasil dimuat.');
     }
 
     public function payCash(Request $request, $id): JsonResponse
@@ -309,14 +304,12 @@ class TransactionController extends Controller
         }
 
         $validated = $request->validate([
-            // Accept both field name variants (frontend sends cash_received)
             'cash_received'  => ['nullable', 'numeric', 'min:0'],
             'nominal_bayar'  => ['nullable', 'numeric', 'min:0'],
             'diskon'         => ['nullable', 'integer', 'min:0'],
             'pajak'          => ['nullable', 'integer', 'min:0'],
         ]);
 
-        // Normalise: support both cash_received and nominal_bayar
         $cashReceived = $validated['cash_received'] ?? $validated['nominal_bayar'] ?? null;
 
         if ($cashReceived === null) {
@@ -348,10 +341,7 @@ class TransactionController extends Controller
             return $transaction->fresh(['items.product', 'user']);
         });
 
-        return response()->json([
-            'message' => 'Transaksi berhasil dibayar',
-            'data'    => $updatedTransaction,
-        ]);
+        return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar.');
     }
 
     public function payCard(Request $request, $id): JsonResponse
@@ -362,7 +352,6 @@ class TransactionController extends Controller
         }
 
         $validated = $request->validate([
-            // Accept both Indonesian field names and frontend English names
             'jenis_kartu'        => ['nullable', 'string', 'in:debit,kredit,credit'],
             'card_type'          => ['nullable', 'string', 'in:debit,kredit,credit'],
             'nomor_kartu_akhir'  => ['nullable', 'string', 'size:4'],
@@ -373,12 +362,10 @@ class TransactionController extends Controller
             'pajak'              => ['nullable', 'integer', 'min:0'],
         ]);
 
-        // Normalise field names
         $jenisKartu       = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
         $nomorKartuAkhir  = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
         $referensiEdc     = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
 
-        // Normalise card type (frontend sends 'credit', backend stores 'kredit')
         $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
 
         $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
@@ -399,10 +386,7 @@ class TransactionController extends Controller
             return $transaction->fresh(['items.product', 'user']);
         });
 
-        return response()->json([
-            'message' => 'Transaksi berhasil dibayar via kartu',
-            'data'    => $updatedTransaction,
-        ]);
+        return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar via kartu.');
     }
 
     public function paySplit(Request $request, $id): JsonResponse
@@ -415,7 +399,7 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'cash_amount' => ['required', 'integer', 'min:0'],
             'card_amount' => ['required', 'integer', 'min:0'],
-            'nominal_bayar' => ['required', 'integer', 'min:0'], // Cash paid
+            'nominal_bayar' => ['required', 'integer', 'min:0'],
             'jenis_kartu' => ['required', 'string', 'in:debit,kredit'],
             'nomor_kartu_akhir' => ['required', 'string', 'size:4'],
             'referensi_edc' => ['required', 'string', 'max:50'],
@@ -453,10 +437,7 @@ class TransactionController extends Controller
             return $transaction->fresh(['items.product', 'user']);
         });
 
-        return response()->json([
-            'message' => 'Transaksi split berhasil dibayar',
-            'data' => $updatedTransaction,
-        ]);
+        return $this->responseSuccess($updatedTransaction, 'Transaksi split berhasil dibayar.');
     }
 
     public function void(Request $request, $id): JsonResponse
@@ -504,10 +485,7 @@ class TransactionController extends Controller
             return $transaction->fresh(['items.product', 'user', 'voidBy']);
         });
 
-        return response()->json([
-            'message' => 'Transaksi berhasil di-void',
-            'data' => $voidedTransaction,
-        ]);
+        return $this->responseSuccess($voidedTransaction, 'Transaksi berhasil di-void.');
     }
 
     private function validateAndDeductStock(Transaction $transaction, $user): void
