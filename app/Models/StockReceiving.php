@@ -15,9 +15,13 @@ class StockReceiving extends Model
         'store_id',
         'nomor_penerimaan',
         'supplier',
+        'supplier_id',
         'nomor_faktur',
         'catatan',
         'user_id',
+        'status',
+        'nilai_faktur',
+        'status_pembayaran',
     ];
 
     public function items(): HasMany
@@ -28,5 +32,10 @@ class StockReceiving extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function supplier_relationship(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 }

@@ -42,6 +42,8 @@ class StockAdjustmentController extends Controller
             return $movement->load('product');
         });
 
+        \App\Models\ActivityLog::log('create_adjustment', "Manual stock adjustment for Product '{$movement->product->nama}' (Qty: {$movement->kuantitas}) was saved.", $movement, ['new' => $movement->toArray()]);
+
         return $this->responseSuccess($movement, 'Penyesuaian stok berhasil disimpan.', 201);
     }
 }

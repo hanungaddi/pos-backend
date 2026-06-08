@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\StockReceivingController;
 use App\Http\Controllers\Api\V1\StockAdjustmentController;
 use App\Http\Controllers\Api\V1\StockOpnameController;
+use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\ActivityLogController;
 
 // API Routes V1
 Route::prefix('v1')->group(function () {
@@ -28,6 +30,7 @@ Route::prefix('v1')->group(function () {
     // User Management CRUD Routes
     Route::middleware(['auth:sanctum', 'permission:manage_users'])->group(function () {
         Route::apiResource('users', UserController::class);
+        Route::get('activity-logs', [ActivityLogController::class, 'index']);
     });
 
     // Product V1 Routes
@@ -89,6 +92,9 @@ Route::prefix('v1')->group(function () {
             Route::get('receiving', [StockReceivingController::class, 'index']);
             Route::post('receiving', [StockReceivingController::class, 'store']);
             Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
+            Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
+            Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
+            Route::patch('receiving/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
 
             Route::post('adjustment', [StockAdjustmentController::class, 'store']);
 
@@ -96,6 +102,10 @@ Route::prefix('v1')->group(function () {
             Route::post('opname', [StockOpnameController::class, 'store']);
             Route::get('opname/{id}', [StockOpnameController::class, 'show']);
             Route::put('opname/{id}', [StockOpnameController::class, 'update']);
+            Route::delete('opname/{id}', [StockOpnameController::class, 'destroy']);
+
+            Route::get('suppliers/all', [SupplierController::class, 'all']);
+            Route::apiResource('suppliers', SupplierController::class);
         });
     });
 });

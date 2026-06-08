@@ -78,6 +78,8 @@ class UserController extends Controller
 
         $user->syncRoles($request->roles);
 
+        \App\Models\ActivityLog::log('create_user', "User '{$user->name}' was created.", $user, ['new' => $user->toArray()]);
+
         return $this->responseSuccess(
             new UserResource($user),
             'User berhasil ditambahkan.',
@@ -111,8 +113,21 @@ class UserController extends Controller
             $userData['password'] = Hash::make($request->password);
         }
 
+        $oldData = array_intersect_key($user->getOriginal(), $userData);
+
         $user->update($userData);
         $user->syncRoles($request->roles);
+
+        $changes = $user->getChanges();
+        if (!empty($changes)) {
+            // Exclude security sensitive fields from JSON properties logs
+            unset($changes['password']);
+            unset($oldData['password']);
+            \App\Models\ActivityLog::log('update_user', "User '{$user->name}' was updated.", $user, [
+                'old' => array_intersect_key($oldData, $changes),
+                'new' => $changes
+            ]);
+        }
 
         return $this->responseSuccess(
             new UserResource($user->fresh(['roles', 'permissions'])),
@@ -127,6 +142,8 @@ class UserController extends Controller
     {
         // For POS audits, we deactivate rather than hard delete users
         $user->update(['status' => 'inactive']);
+
+        \App\Models\ActivityLog::log('deactivate_user', "User '{$user->name}' was deactivated.", $user);
 
         return $this->responseSuccess(new UserResource($user), 'User berhasil dinonaktifkan.');
     }
