@@ -14,6 +14,7 @@ class Transaction extends Model
     protected $fillable = [
         'store_id',
         'user_id',
+        'cash_drawer_session_id',
         'nomor_transaksi',
         'subtotal',
         'pajak',
@@ -43,6 +44,7 @@ class Transaction extends Model
             'total' => 'integer',
             'nominal_bayar' => 'integer',
             'kembalian' => 'integer',
+            'cash_drawer_session_id' => 'integer',
             'is_offline' => 'boolean',
             'voided_at' => 'datetime',
             'synced_at' => 'datetime',
@@ -57,6 +59,11 @@ class Transaction extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cashDrawerSession(): BelongsTo
+    {
+        return $this->belongsTo(CashDrawerSession::class);
     }
 
     public function voidBy(): BelongsTo
