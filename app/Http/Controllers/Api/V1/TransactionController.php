@@ -271,6 +271,8 @@ class TransactionController extends Controller
 
         $transaction->update(['status' => 'hold']);
 
+        \App\Models\ActivityLog::log('hold_transaction', "Transaction #{$transaction->id} was put on hold.", $transaction);
+
         return $this->responseSuccess($transaction, 'Transaksi berhasil ditunda.');
     }
 
@@ -282,6 +284,8 @@ class TransactionController extends Controller
         }
 
         $transaction->update(['status' => 'draft']);
+
+        \App\Models\ActivityLog::log('recall_transaction', "Transaction #{$transaction->id} was recalled.", $transaction);
 
         return $this->responseSuccess($transaction->load('items.product'), 'Transaksi berhasil dipanggil kembali.');
     }
@@ -341,6 +345,8 @@ class TransactionController extends Controller
             return $transaction->fresh(['items.product', 'user']);
         });
 
+        \App\Models\ActivityLog::log('checkout_cash', "Transaction #{$transaction->id} was paid using Cash.", $updatedTransaction, ['total' => $updatedTransaction->total]);
+
         return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar.');
     }
 
@@ -385,6 +391,8 @@ class TransactionController extends Controller
 
             return $transaction->fresh(['items.product', 'user']);
         });
+
+        \App\Models\ActivityLog::log('checkout_card', "Transaction #{$transaction->id} was paid using Card.", $updatedTransaction, ['total' => $updatedTransaction->total]);
 
         return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar via kartu.');
     }
@@ -437,6 +445,8 @@ class TransactionController extends Controller
             return $transaction->fresh(['items.product', 'user']);
         });
 
+        \App\Models\ActivityLog::log('checkout_split', "Transaction #{$transaction->id} was paid using Split payment.", $updatedTransaction, ['total' => $updatedTransaction->total]);
+
         return $this->responseSuccess($updatedTransaction, 'Transaksi split berhasil dibayar.');
     }
 
@@ -484,6 +494,8 @@ class TransactionController extends Controller
 
             return $transaction->fresh(['items.product', 'user', 'voidBy']);
         });
+
+        \App\Models\ActivityLog::log('void_transaction', "Transaction #{$transaction->id} was voided. Reason: {$validated['catatan_void']}", $voidedTransaction);
 
         return $this->responseSuccess($voidedTransaction, 'Transaksi berhasil di-void.');
     }

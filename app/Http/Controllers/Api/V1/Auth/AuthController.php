@@ -39,6 +39,16 @@ class AuthController extends Controller
         // Generate Sanctum token
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'model_type' => User::class,
+            'model_id' => $user->id,
+            'description' => "User '{$user->name}' logged in successfully.",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         return response()->json([
             'message' => 'Login berhasil.',
             'access_token' => $token,
@@ -58,7 +68,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        
+        \App\Models\ActivityLog::log('logout', "User '{$user->name}' logged out.", $user);
+
+        $user->currentAccessToken()->delete();
 
         return response()->json([
             'data' => null,

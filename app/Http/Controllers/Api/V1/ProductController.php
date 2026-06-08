@@ -77,6 +77,10 @@ class ProductController extends Controller
             ->map(fn (array $product) => Product::create($product))
             ->values();
 
+        foreach ($products as $p) {
+            \App\Models\ActivityLog::log('create_product', "Product '{$p->nama}' was created.", $p, ['new' => $p->toArray()]);
+        }
+
         return $this->responseSuccess(
             $isBulk ? $products : $products->first(),
             'Produk berhasil ditambahkan.',
@@ -100,14 +104,29 @@ class ProductController extends Controller
             'status' => ['sometimes', 'required', 'string', Rule::in(['active', 'inactive'])],
         ]);
 
+        $oldData = array_intersect_key($product->getOriginal(), $validated);
+
         $product->update($validated);
+
+        $changes = $product->getChanges();
+        if (!empty($changes)) {
+            \App\Models\ActivityLog::log('update_product', "Product '{$product->nama}' was updated.", $product, [
+                'old' => array_intersect_key($oldData, $changes),
+                'new' => $changes
+            ]);
+        }
 
         return $this->responseSuccess($product, 'Produk berhasil diperbarui.');
     }
 
     public function destroy(Product $product): JsonResponse
     {
+        $productName = $product->nama;
+        $oldData = $product->toArray();
+
         $product->delete();
+
+        \App\Models\ActivityLog::log('delete_product', "Product '{$productName}' was deleted.", null, ['old' => $oldData]);
 
         return $this->responseSuccess(null, 'Produk berhasil dihapus.');
     }
@@ -118,7 +137,14 @@ class ProductController extends Controller
             'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
         ]);
 
+        $oldStatus = $product->status;
+
         $product->update(['status' => $validated['status']]);
+
+        \App\Models\ActivityLog::log('change_product_status', "Product '{$product->nama}' status changed to '{$validated['status']}'.", $product, [
+            'old' => ['status' => $oldStatus],
+            'new' => ['status' => $validated['status']]
+        ]);
 
         return $this->responseSuccess($product, 'Status produk berhasil diperbarui.');
     }

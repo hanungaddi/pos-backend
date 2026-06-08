@@ -31,6 +31,22 @@
     {
       "name": "Inventory",
       "description": "Stock movements, receiving, adjustment, and opname"
+    },
+    {
+      "name": "Suppliers",
+      "description": "Supplier master data management"
+    },
+    {
+      "name": "Activity Logs",
+      "description": "System and user activity audit logs"
+    },
+    {
+      "name": "Receiving",
+      "description": "Stock receiving and supplier shipment tracking"
+    },
+    {
+      "name": "Opname",
+      "description": "Physical inventory counting and stock opname"
     }
   ],
   "paths": {
@@ -624,7 +640,7 @@
     "/api/v1/inventory/receiving": {
       "get": {
         "tags": [
-          "Inventory"
+          "Receiving"
         ],
         "summary": "List stock receivings",
         "description": "Retrieves list of receivings. Access is restricted to users with 'manage_inventory' permission.",
@@ -673,7 +689,7 @@
       },
       "post": {
         "tags": [
-          "Inventory"
+          "Receiving"
         ],
         "summary": "Create stock receiving",
         "description": "Records a new incoming stock from a supplier and increments product stock levels. Access is restricted to users with 'manage_inventory' permission.",
@@ -726,10 +742,9 @@
     "/api/v1/inventory/receiving/{id}": {
       "get": {
         "tags": [
-          "Inventory"
+          "Receiving"
         ],
-        "summary": "Get stock receiving details",
-        "description": "Retrieves detail of a single receiving record. Access is restricted to users with 'manage_inventory' permission.",
+        "summary": "Show receiving detail",
         "security": [
           {
             "BearerAuth": []
@@ -747,28 +762,60 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/StockReceiving"
-                    }
-                  }
-                }
-              }
+            "description": "Receiving details."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Receiving"
+        ],
+        "summary": "Update draft receiving / Finalize",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
-          },
-          "401": {
-            "description": "Unauthenticated"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Not Found"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receiving updated."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Receiving"
+        ],
+        "summary": "Delete draft receiving",
+        "description": "Deletes a draft stock receiving. Completed receiving cannot be deleted. Restricted to manage_inventory permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft receiving deleted."
           }
         }
       }
@@ -829,7 +876,7 @@
     "/api/v1/inventory/opname": {
       "get": {
         "tags": [
-          "Inventory"
+          "Opname"
         ],
         "summary": "List stock opnames",
         "description": "Retrieves list of opnames. Access is restricted to users with 'manage_inventory' permission.",
@@ -889,7 +936,7 @@
       },
       "post": {
         "tags": [
-          "Inventory"
+          "Opname"
         ],
         "summary": "Create draft stock opname",
         "description": "Records a new draft stock opname. Does not modify actual product stock. Access is restricted to users with 'manage_inventory' permission.",
@@ -942,10 +989,9 @@
     "/api/v1/inventory/opname/{id}": {
       "get": {
         "tags": [
-          "Inventory"
+          "Opname"
         ],
-        "summary": "Get stock opname details",
-        "description": "Retrieves detail of a single opname record. Access is restricted to users with 'manage_inventory' permission.",
+        "summary": "Show opname details",
         "security": [
           {
             "BearerAuth": []
@@ -963,37 +1009,15 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/StockOpname"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Not Found"
+            "description": "Opname details."
           }
         }
       },
       "put": {
         "tags": [
-          "Inventory"
+          "Opname"
         ],
-        "summary": "Update and finalize stock opname",
-        "description": "Updates a draft stock opname. If status is 'completed', finalizes it, adjusts product stock levels, and records stock movements. Access is restricted to users with 'manage_inventory' permission.",
+        "summary": "Finalize draft opname",
         "security": [
           {
             "BearerAuth": []
@@ -1009,43 +1033,36 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StockOpnameUpdate"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/StockOpname"
-                    }
-                  }
-                }
-              }
+            "description": "Opname finalized."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Opname"
+        ],
+        "summary": "Delete draft opname",
+        "description": "Deletes a draft stock opname sheet. Completed opname cannot be deleted. Restricted to manage_inventory permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
-          },
-          "401": {
-            "description": "Unauthenticated"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "422": {
-            "description": "Validation error / Opname already finalized"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft opname deleted."
           }
         }
       }
@@ -2064,6 +2081,363 @@
         "responses": {
           "200": {
             "description": "Daily report metrics."
+          }
+        }
+      }
+    },
+    "/api/v1/activity-logs": {
+      "get": {
+        "tags": [
+          "Activity Logs"
+        ],
+        "summary": "Retrieve activity logs",
+        "description": "Get a paginated, filterable, and searchable list of system activity logs. Restricted to users with manage_users permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of activity logs."
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/suppliers/all": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Get all suppliers (non-paginated)",
+        "description": "List all suppliers for dropdown selects. Restricted to manage_inventory permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all suppliers."
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/suppliers": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "List paginated suppliers",
+        "description": "Get a paginated list of suppliers. Restricted to manage_inventory permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 15
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated suppliers list."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Create new supplier",
+        "description": "Register a new supplier master data. Restricted to manage_inventory permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nama": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "nullable": true
+                  },
+                  "nomor_telepon": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "alamat": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "nama"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Supplier created."
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/suppliers/{id}": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Show supplier details",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Supplier details."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Update supplier details",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nama": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "nullable": true
+                  },
+                  "nomor_telepon": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "alamat": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "nama"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Supplier updated."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Delete supplier master",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Supplier deleted."
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/receiving/{id}/payment-status": {
+      "patch": {
+        "tags": [
+          "Receiving"
+        ],
+        "summary": "Update receiving invoice payment status",
+        "description": "Updates payment status of receiving invoice. Restricted to manage_inventory permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status_pembayaran": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "paid"
+                    ]
+                  }
+                },
+                "required": [
+                  "status_pembayaran"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated."
           }
         }
       }

@@ -8,6 +8,7 @@ use App\Http\Requests\StockOpnameUpdateRequest;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\StockOpname;
+use App\Models\ActivityLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +80,13 @@ class StockOpnameController extends Controller
 
             return $opname->load(['items.product', 'user']);
         });
+
+        ActivityLog::log(
+            'create_opname_draft',
+            "Draft stock opname '{$opname->nomor_opname}' was created.",
+            $opname,
+            ['new' => $opname->toArray()]
+        );
 
         return $this->responseSuccess($opname, 'Draft stock opname berhasil disimpan.', 201);
     }
@@ -164,7 +172,53 @@ class StockOpnameController extends Controller
             ? 'Stock opname berhasil diselesaikan dan stok telah disesuaikan.'
             : 'Draft stock opname berhasil diperbarui.';
 
+        if ($validated['status'] === 'completed') {
+            ActivityLog::log(
+                'finalize_opname',
+                "Stock opname '{$opname->nomor_opname}' was finalized.",
+                $updatedOpname,
+                ['new' => $updatedOpname->toArray()]
+            );
+        } else {
+            ActivityLog::log(
+                'update_opname_draft',
+                "Draft stock opname '{$opname->nomor_opname}' was updated.",
+                $updatedOpname,
+                ['new' => $updatedOpname->toArray()]
+            );
+        }
+
         return $this->responseSuccess($updatedOpname, $message);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $opname = StockOpname::find($id);
+
+        if (! $opname) {
+            return response()->json(['message' => 'Data stock opname tidak ditemukan.'], 404);
+        }
+
+        if ($opname->status === 'completed') {
+            return response()->json(['message' => 'Stock opname yang sudah selesai tidak dapat dihapus.'], 422);
+        }
+
+        $nomorOpname = $opname->nomor_opname;
+        $oldData = $opname->toArray();
+
+        DB::transaction(function () use ($opname) {
+            $opname->items()->delete();
+            $opname->delete();
+        });
+
+        ActivityLog::log(
+            'delete_opname_draft',
+            "Draft stock opname '{$nomorOpname}' was deleted.",
+            null,
+            ['old' => $oldData]
+        );
+
+        return $this->responseSuccess(null, 'Draft stock opname berhasil dihapus.');
     }
 
     private function generateNomorOpname(): string
