@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashDrawerMovement;
+use App\Models\CashDrawerSession;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Transaction;
@@ -334,12 +336,14 @@ class TransactionController extends Controller
 
         $updatedTransaction = DB::transaction(function () use ($transaction, $cashReceived, $request) {
             $this->validateAndDeductStock($transaction, $request->user());
+            $cashDrawerSessionId = $this->recordCashDrawerSale($transaction, $request->user(), $transaction->total);
 
             $transaction->update([
                 'status'           => 'completed',
                 'metode_pembayaran'=> 'cash',
                 'nominal_bayar'    => $cashReceived,
                 'kembalian'        => $cashReceived - $transaction->total,
+                'cash_drawer_session_id' => $cashDrawerSessionId,
             ]);
 
             return $transaction->fresh(['items.product', 'user']);
@@ -431,6 +435,7 @@ class TransactionController extends Controller
 
         $updatedTransaction = DB::transaction(function () use ($transaction, $validated, $request) {
             $this->validateAndDeductStock($transaction, $request->user());
+            $cashDrawerSessionId = $this->recordCashDrawerSale($transaction, $request->user(), (int) $validated['cash_amount']);
 
             $transaction->update([
                 'status' => 'completed',
@@ -440,6 +445,7 @@ class TransactionController extends Controller
                 'jenis_kartu' => $validated['jenis_kartu'],
                 'nomor_kartu_akhir' => $validated['nomor_kartu_akhir'],
                 'referensi_edc' => $validated['referensi_edc'],
+                'cash_drawer_session_id' => $cashDrawerSessionId,
             ]);
 
             return $transaction->fresh(['items.product', 'user']);
@@ -492,6 +498,8 @@ class TransactionController extends Controller
                 'voided_at' => now(),
             ]);
 
+            $this->recordCashDrawerRefund($transaction, $request->user());
+
             return $transaction->fresh(['items.product', 'user', 'voidBy']);
         });
 
@@ -541,6 +549,127 @@ class TransactionController extends Controller
                 'user_id' => $user->id,
             ]);
         }
+    }
+
+    private function recordCashDrawerSale(Transaction $transaction, $user, int $cashAmount): ?int
+    {
+        if ($cashAmount <= 0) {
+            return null;
+        }
+
+        $session = CashDrawerSession::query()
+            ->open()
+            ->where('user_id', $user->id)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$session) {
+            return null;
+        }
+
+        $balanceBefore = $session->expected_cash;
+        $balanceAfter = $balanceBefore + $cashAmount;
+
+        $session->update([
+            'expected_cash' => $balanceAfter,
+            'cash_sales_total' => $session->cash_sales_total + $cashAmount,
+        ]);
+
+        $movement = $session->recordMovement(
+            'cash_sale',
+            $cashAmount,
+            $balanceBefore,
+            $balanceAfter,
+            $user,
+            'Pembayaran tunai transaksi ' . $transaction->nomor_transaksi,
+            $transaction->id,
+            'transaction'
+        );
+
+        \App\Models\ActivityLog::log(
+            'cash_drawer_cash_sale',
+            "Cash drawer #{$session->id} recorded cash sale for transaction {$transaction->nomor_transaksi}.",
+            $session,
+            [
+                'movement_id' => $movement->id,
+                'transaction_id' => $transaction->id,
+                'transaction_number' => $transaction->nomor_transaksi,
+                'amount' => $cashAmount,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+            ]
+        );
+
+        return $session->id;
+    }
+
+    private function recordCashDrawerRefund(Transaction $transaction, $user): void
+    {
+        if (!$transaction->cash_drawer_session_id || !in_array($transaction->metode_pembayaran, ['cash', 'split'])) {
+            return;
+        }
+
+        $saleMovement = CashDrawerMovement::query()
+            ->where('cash_drawer_session_id', $transaction->cash_drawer_session_id)
+            ->where('reference_type', 'transaction')
+            ->where('reference_id', $transaction->id)
+            ->where('type', 'cash_sale')
+            ->first();
+
+        if (!$saleMovement) {
+            return;
+        }
+
+        $session = CashDrawerSession::query()
+            ->open()
+            ->whereKey($transaction->cash_drawer_session_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$session) {
+            return;
+        }
+
+        $refundAmount = $saleMovement->amount;
+        $balanceBefore = $session->expected_cash;
+
+        if ($refundAmount > $balanceBefore) {
+            throw ValidationException::withMessages([
+                'cash_drawer' => ['Saldo cash drawer tidak cukup untuk mencatat refund transaksi ini.'],
+            ]);
+        }
+
+        $balanceAfter = $balanceBefore - $refundAmount;
+
+        $session->update([
+            'expected_cash' => $balanceAfter,
+            'cash_refunds_total' => $session->cash_refunds_total + $refundAmount,
+        ]);
+
+        $movement = $session->recordMovement(
+            'cash_refund',
+            $refundAmount,
+            $balanceBefore,
+            $balanceAfter,
+            $user,
+            'Refund void transaksi ' . $transaction->nomor_transaksi,
+            $transaction->id,
+            'transaction'
+        );
+
+        \App\Models\ActivityLog::log(
+            'cash_drawer_cash_refund',
+            "Cash drawer #{$session->id} recorded cash refund for voided transaction {$transaction->nomor_transaksi}.",
+            $session,
+            [
+                'movement_id' => $movement->id,
+                'transaction_id' => $transaction->id,
+                'transaction_number' => $transaction->nomor_transaksi,
+                'amount' => $refundAmount,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+            ]
+        );
     }
 
     private function recalculateTotals(Transaction $transaction, ?int $customTax = null, ?int $customDiscount = null): void

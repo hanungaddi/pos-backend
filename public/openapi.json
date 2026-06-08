@@ -47,6 +47,10 @@
     {
       "name": "Opname",
       "description": "Physical inventory counting and stock opname"
+    },
+    {
+      "name": "Cash Drawer",
+      "description": "Cash drawer shift opening, cash movements, closing, and audit trail"
     }
   ],
   "paths": {
@@ -1425,6 +1429,344 @@
         "responses": {
           "200": {
             "description": "Product status updated."
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/current": {
+      "get": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "Get current open cash drawer",
+        "description": "Returns the authenticated cashier's open cash drawer session, or null when no drawer is open.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current cash drawer status loaded."
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Missing operate_cash_drawer or manage_cash_drawer permission."
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/open": {
+      "post": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "Open cash drawer",
+        "description": "Starts a new open cash drawer session for the authenticated cashier. A cashier can only have one open session.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "opening_balance"
+                ],
+                "properties": {
+                  "opening_balance": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 100000
+                  },
+                  "opening_note": {
+                    "type": "string",
+                    "example": "Modal awal shift pagi."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cash drawer opened."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/sessions": {
+      "get": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "List cash drawer sessions",
+        "description": "Retrieves cash drawer sessions. Restricted to users with view_cash_drawer permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 15
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cash drawer sessions loaded."
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/sessions/{session}": {
+      "get": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "Get cash drawer session detail",
+        "description": "Returns a cash drawer session with movements and transactions. Cashiers can view their own sessions; supervisors and managers can view all sessions.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cash drawer session loaded."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/sessions/{session}/cash-in": {
+      "post": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "Record cash in",
+        "description": "Adds cash to an open drawer and updates expected cash.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amount"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 20000
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "Tambahan uang kecil."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cash in recorded."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/sessions/{session}/cash-out": {
+      "post": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "Record cash out",
+        "description": "Removes cash from an open drawer and updates expected cash.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amount",
+                  "note"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 15000
+                  },
+                  "note": {
+                    "type": "string",
+                    "example": "Pembelian lakban."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cash out recorded."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/cash-drawer/sessions/{session}/close": {
+      "post": {
+        "tags": [
+          "Cash Drawer"
+        ],
+        "summary": "Close cash drawer",
+        "description": "Closes an open drawer by comparing expected cash with the counted closing balance.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "actual_closing_balance"
+                ],
+                "properties": {
+                  "actual_closing_balance": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 104000
+                  },
+                  "closing_note": {
+                    "type": "string",
+                    "example": "Selisih kurang seribu."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cash drawer closed."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
           }
         }
       }

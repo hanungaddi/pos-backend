@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\StockAdjustmentController;
 use App\Http\Controllers\Api\V1\StockOpnameController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\ActivityLogController;
+use App\Http\Controllers\Api\V1\CashDrawerController;
 
 // API Routes V1
 Route::prefix('v1')->group(function () {
@@ -51,6 +52,25 @@ Route::prefix('v1')->group(function () {
 
     // Transaction & Report Management Routes (V1)
     Route::middleware(['auth:sanctum'])->group(function () {
+        // Cash Drawer Operations
+        Route::prefix('cash-drawer')->group(function () {
+            Route::middleware(['permission:view_cash_drawer'])->group(function () {
+                Route::get('sessions', [CashDrawerController::class, 'index']);
+            });
+
+            Route::middleware(['permission:operate_cash_drawer|manage_cash_drawer'])->group(function () {
+                Route::get('current', [CashDrawerController::class, 'current']);
+                Route::post('open', [CashDrawerController::class, 'open']);
+                Route::post('sessions/{session}/cash-in', [CashDrawerController::class, 'cashIn']);
+                Route::post('sessions/{session}/cash-out', [CashDrawerController::class, 'cashOut']);
+                Route::post('sessions/{session}/close', [CashDrawerController::class, 'close']);
+            });
+
+            Route::middleware(['permission:operate_cash_drawer|view_cash_drawer'])->group(function () {
+                Route::get('sessions/{session}', [CashDrawerController::class, 'show']);
+            });
+        });
+
         // Cashier+ Operations (create_sales)
         Route::middleware(['permission:create_sales'])->group(function () {
             Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
@@ -109,4 +129,3 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
-
