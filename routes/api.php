@@ -29,10 +29,26 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // User Management CRUD Routes
-    Route::middleware(['auth:sanctum', 'permission:manage_users'])->group(function () {
-        Route::apiResource('users', UserController::class);
-        Route::get('activity-logs', [ActivityLogController::class, 'index']);
+    // User Management & Activity Logs
+    Route::middleware(['auth:sanctum'])->group(function () {
+        // Read Users
+        Route::middleware(['permission:view_users|manage_users'])->group(function () {
+            Route::get('users', [UserController::class, 'index']);
+            Route::get('users/{user}', [UserController::class, 'show']);
+        });
+
+        // Write/Modify Users
+        Route::middleware(['permission:manage_users'])->group(function () {
+            Route::post('users', [UserController::class, 'store']);
+            Route::put('users/{user}', [UserController::class, 'update']);
+            Route::patch('users/{user}', [UserController::class, 'update']);
+            Route::delete('users/{user}', [UserController::class, 'destroy']);
+        });
+
+        // Activity Logs
+        Route::middleware(['permission:view_audit_logs'])->group(function () {
+            Route::get('activity-logs', [ActivityLogController::class, 'index']);
+        });
     });
 
     // Role & Permission Management (Only Admin)
@@ -45,12 +61,14 @@ Route::prefix('v1')->group(function () {
 
     // Product V1 Routes
     Route::middleware(['auth:sanctum'])->group(function () {
-        // Authenticated Read for All (Kasir, Supervisor, Manajer, Admin)
-        Route::get('products', [ProductController::class, 'index']);
-        Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
-        Route::get('products/{product}', [ProductController::class, 'show']);
+        // Read Products
+        Route::middleware(['permission:view_products|manage_products'])->group(function () {
+            Route::get('products', [ProductController::class, 'index']);
+            Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
+            Route::get('products/{product}', [ProductController::class, 'show']);
+        });
 
-        // Manage (Supervisor, Manajer, Admin)
+        // Manage Products
         Route::middleware(['permission:manage_products'])->group(function () {
             Route::post('products', [ProductController::class, 'store']);
             Route::put('products/{product}', [ProductController::class, 'update']);
@@ -140,9 +158,20 @@ Route::prefix('v1')->group(function () {
             Route::post('opname', [StockOpnameController::class, 'store']);
             Route::put('opname/{id}', [StockOpnameController::class, 'update']);
             Route::delete('opname/{id}', [StockOpnameController::class, 'destroy']);
+        });
 
+        // Suppliers Read-Only
+        Route::middleware(['permission:view_suppliers|manage_suppliers'])->group(function () {
             Route::get('suppliers/all', [SupplierController::class, 'all']);
-            Route::apiResource('suppliers', SupplierController::class);
+            Route::get('suppliers', [SupplierController::class, 'index']);
+            Route::get('suppliers/{id}', [SupplierController::class, 'show']);
+        });
+
+        // Suppliers Write/Modify
+        Route::middleware(['permission:manage_suppliers'])->group(function () {
+            Route::post('suppliers', [SupplierController::class, 'store']);
+            Route::put('suppliers/{id}', [SupplierController::class, 'update']);
+            Route::delete('suppliers/{id}', [SupplierController::class, 'destroy']);
         });
     });
 });

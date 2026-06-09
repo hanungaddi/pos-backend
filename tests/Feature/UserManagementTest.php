@@ -13,6 +13,7 @@ class UserManagementTest extends TestCase
     use RefreshDatabase;
 
     protected User $adminUser;
+    protected User $managerUser;
     protected User $cashierUser;
 
     protected function setUp(): void
@@ -31,6 +32,16 @@ class UserManagementTest extends TestCase
             'status' => 'active',
         ]);
         $this->adminUser->assignRole('admin');
+
+        // Create Manager User
+        $this->managerUser = User::create([
+            'name' => 'Manager POS',
+            'username' => 'manager_pos',
+            'email' => 'manager@pos.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+        ]);
+        $this->managerUser->assignRole('manajer_toko');
 
         // Create Cashier User
         $this->cashierUser = User::create([
@@ -69,7 +80,7 @@ class UserManagementTest extends TestCase
                     'total',
                 ]
             ])
-            ->assertJsonCount(2, 'data'); // Total 2 users seeded in setUp
+            ->assertJsonCount(3, 'data'); // Total 3 users seeded in setUp (admin, manager, cashier)
     }
 
     public function test_admin_can_create_user_with_roles(): void
@@ -158,6 +169,47 @@ class UserManagementTest extends TestCase
             'id' => $targetUser->id,
             'status' => 'inactive',
         ]);
+    }
+
+    public function test_manager_can_manage_users(): void
+    {
+        // 1. Manager can list users
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson('/api/v1/users')
+            ->assertStatus(200);
+
+        // 2. Manager can view a user detail
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson("/api/v1/users/{$this->cashierUser->id}")
+            ->assertStatus(200);
+
+        // 3. Manager can create a user
+        $response = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/users', [
+                'name' => 'New User From Manager',
+                'username' => 'mgr_created',
+                'email' => 'mgr_created@pos.com',
+                'password' => 'password123',
+                'roles' => ['kasir'],
+                'status' => 'active',
+            ]);
+        $response->assertStatus(201);
+        $newUserId = $response->json('data.id');
+
+        // 4. Manager can update a user
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/users/{$newUserId}", [
+                'name' => 'Updated User From Manager',
+                'username' => 'mgr_created_updated',
+                'roles' => ['supervisor'],
+                'status' => 'active',
+            ])
+            ->assertStatus(200);
+
+        // 5. Manager can deactivate a user
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->deleteJson("/api/v1/users/{$newUserId}")
+            ->assertStatus(200);
     }
 
     public function test_cashier_cannot_access_user_crud_operations(): void
