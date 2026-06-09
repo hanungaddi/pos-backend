@@ -276,6 +276,56 @@ class SupplierAndActivityLogTest extends TestCase
         ]);
     }
 
+    public function test_supplier_permissions_for_supervisor_and_cashier(): void
+    {
+        $supplier = Supplier::create([
+            'nama' => 'PT Test Perms',
+            'store_id' => 1,
+        ]);
+
+        // 1. Supervisor (has view_suppliers) can view suppliers
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson('/api/v1/inventory/suppliers/all')
+            ->assertStatus(200)
+            ->assertJsonFragment(['nama' => 'PT Test Perms']);
+
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson("/api/v1/inventory/suppliers/{$supplier->id}")
+            ->assertStatus(200);
+
+        // 2. Supervisor cannot write/modify/delete suppliers
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->postJson('/api/v1/inventory/suppliers', [
+                'nama' => 'PT Illegal write',
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->putJson("/api/v1/inventory/suppliers/{$supplier->id}", [
+                'nama' => 'PT Illegal update',
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->deleteJson("/api/v1/inventory/suppliers/{$supplier->id}")
+            ->assertStatus(403);
+
+        // 3. Cashier (no supplier permissions) cannot view or write suppliers
+        $this->actingAs($this->cashierUser, 'sanctum')
+            ->getJson('/api/v1/inventory/suppliers/all')
+            ->assertStatus(403);
+
+        $this->actingAs($this->cashierUser, 'sanctum')
+            ->getJson("/api/v1/inventory/suppliers/{$supplier->id}")
+            ->assertStatus(403);
+
+        $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/inventory/suppliers', [
+                'nama' => 'PT Cashier write',
+            ])
+            ->assertStatus(403);
+    }
+
     public function test_activity_logs_indexing_and_searching(): void
     {
         ActivityLog::create([
@@ -285,13 +335,23 @@ class SupplierAndActivityLogTest extends TestCase
             'description' => 'Special unique description string',
         ]);
 
-        // Get logs as Admin
+        // Get logs as Admin (has view_audit_logs)
         $response = $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/v1/activity-logs?search=Special unique');
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.action', 'test_action_searchable');
+
+        // Manager can view logs (has view_audit_logs)
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson('/api/v1/activity-logs')
+            ->assertStatus(200);
+
+        // Supervisor user cannot view logs (403)
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson('/api/v1/activity-logs')
+            ->assertStatus(403);
 
         // Cashier user cannot view logs (403)
         $this->actingAs($this->cashierUser, 'sanctum')

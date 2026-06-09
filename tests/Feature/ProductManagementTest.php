@@ -117,4 +117,29 @@ class ProductManagementTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_user_without_view_products_cannot_read_products(): void
+    {
+        $unprivilegedUser = User::create([
+            'name' => 'Unprivileged User',
+            'username' => 'unprivileged',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+        ]);
+
+        // 1. Cannot list products
+        $this->actingAs($unprivilegedUser, 'sanctum')
+            ->getJson('/api/v1/products')
+            ->assertStatus(403);
+
+        // 2. Cannot show product detail
+        $this->actingAs($unprivilegedUser, 'sanctum')
+            ->getJson("/api/v1/products/{$this->activeProduct->id}")
+            ->assertStatus(403);
+
+        // 3. Cannot barcode lookup
+        $this->actingAs($unprivilegedUser, 'sanctum')
+            ->getJson("/api/v1/products/barcode/{$this->activeProduct->barcode}")
+            ->assertStatus(403);
+    }
 }
