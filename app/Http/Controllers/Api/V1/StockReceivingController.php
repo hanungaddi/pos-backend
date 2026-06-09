@@ -83,6 +83,7 @@ class StockReceivingController extends Controller
                 $receiving->items()->create([
                     'product_id' => $itemData['product_id'],
                     'kuantitas' => $itemData['kuantitas'],
+                    'harga_beli' => $itemData['harga_beli'],
                 ]);
 
                 // Only adjust stock and log movement if completed immediately
@@ -93,7 +94,25 @@ class StockReceivingController extends Controller
                         $stokSesudah = $stokSebelum + $itemData['kuantitas'];
 
                         // Update product stock
-                        $product->increment('stok', $itemData['kuantitas']);
+                        $product->stok = $stokSesudah;
+
+                        // Process pricing updates
+                        $product->harga_beli = $itemData['harga_beli'];
+                        
+                        $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                        if ($updateHargaJual) {
+                            if (!empty($itemData['harga_jual_baru'])) {
+                                $product->harga_jual = (int)$itemData['harga_jual_baru'];
+                                $product->margin = null;
+                            } elseif (isset($itemData['margin_baru']) && $itemData['margin_baru'] !== '') {
+                                $product->margin = (float)$itemData['margin_baru'];
+                                $product->harga_jual = 0; // force recalculation
+                            } else {
+                                $product->harga_jual = 0; // force recalculation based on existing margin
+                            }
+                        }
+
+                        $product->save();
 
                         // Log stock movement
                         StockMovement::create([
@@ -173,6 +192,7 @@ class StockReceivingController extends Controller
                 $receiving->items()->create([
                     'product_id' => $itemData['product_id'],
                     'kuantitas' => $itemData['kuantitas'],
+                    'harga_beli' => $itemData['harga_beli'],
                 ]);
 
                 // If finalizing to completed, adjust stock and log movement
@@ -183,7 +203,25 @@ class StockReceivingController extends Controller
                         $stokSesudah = $stokSebelum + $itemData['kuantitas'];
 
                         // Update product stock
-                        $product->increment('stok', $itemData['kuantitas']);
+                        $product->stok = $stokSesudah;
+
+                        // Process pricing updates
+                        $product->harga_beli = $itemData['harga_beli'];
+                        
+                        $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                        if ($updateHargaJual) {
+                            if (!empty($itemData['harga_jual_baru'])) {
+                                $product->harga_jual = (int)$itemData['harga_jual_baru'];
+                                $product->margin = null;
+                            } elseif (isset($itemData['margin_baru']) && $itemData['margin_baru'] !== '') {
+                                $product->margin = (float)$itemData['margin_baru'];
+                                $product->harga_jual = 0; // force recalculation
+                            } else {
+                                $product->harga_jual = 0; // force recalculation based on existing margin
+                            }
+                        }
+
+                        $product->save();
 
                         // Log stock movement
                         StockMovement::create([
@@ -280,6 +318,54 @@ class StockReceivingController extends Controller
         );
 
         return $this->responseSuccess($receiving, 'Status pembayaran faktur berhasil diperbarui.');
+    }
+
+    public function comparePrices(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.harga_beli' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $results = [];
+
+        foreach ($validated['items'] as $itemData) {
+            $product = Product::find($itemData['product_id']);
+            if (!$product) {
+                continue;
+            }
+
+            $hargaBeliLama = (int) $product->harga_beli;
+            $hargaBeliBaru = (int) $itemData['harga_beli'];
+            $hargaJualLama = (int) $product->harga_jual;
+            $marginLama = (float) $product->margin;
+
+            if ($marginLama > 0) {
+                $hargaJualSaran = (int) round($hargaBeliBaru * (1 + $marginLama / 100));
+            } else {
+                $hargaJualSaran = $hargaJualLama;
+            }
+
+            $selisihHargaBeli = $hargaBeliBaru - $hargaBeliLama;
+            $perluAlert = $hargaBeliBaru > $hargaBeliLama;
+
+            $results[] = [
+                'product_id' => $product->id,
+                'nama' => $product->nama,
+                'harga_beli_lama' => $hargaBeliLama,
+                'harga_beli_baru' => $hargaBeliBaru,
+                'harga_jual_lama' => $hargaJualLama,
+                'margin_lama' => $marginLama,
+                'harga_jual_saran' => $hargaJualSaran,
+                'selisih_harga_beli' => $selisihHargaBeli,
+                'perlu_alert' => $perluAlert,
+            ];
+        }
+
+        return response()->json([
+            'data' => $results
+        ]);
     }
 
     private function generateNomorPenerimaan(): string

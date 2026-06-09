@@ -994,6 +994,119 @@
         }
       }
     },
+    "/api/v1/inventory/receiving/compare-prices": {
+      "post": {
+        "tags": [
+          "Receiving"
+        ],
+        "summary": "Compare received item prices",
+        "description": "Compares new buying prices with existing ones to alert managers of cost changes and calculate suggested selling prices based on set margins. Access is restricted to users with 'manage_inventory' permission.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "items"
+                ],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "product_id",
+                        "harga_beli"
+                      ],
+                      "properties": {
+                        "product_id": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "harga_beli": {
+                          "type": "integer",
+                          "example": 11000
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "product_id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "nama": {
+                            "type": "string",
+                            "example": "Beras Pandan Wangi 5kg"
+                          },
+                          "harga_beli_lama": {
+                            "type": "integer",
+                            "example": 10000
+                          },
+                          "harga_beli_baru": {
+                            "type": "integer",
+                            "example": 11000
+                          },
+                          "harga_jual_lama": {
+                            "type": "integer",
+                            "example": 12000
+                          },
+                          "margin_lama": {
+                            "type": "number",
+                            "example": 20.00
+                          },
+                          "harga_jual_saran": {
+                            "type": "integer",
+                            "example": 13200
+                          },
+                          "selisih_harga_beli": {
+                            "type": "integer",
+                            "example": 1000
+                          },
+                          "perlu_alert": {
+                            "type": "boolean",
+                            "example": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
     "/api/v1/inventory/receiving": {
       "get": {
         "tags": [
@@ -3826,6 +3939,9 @@
           "merek",
           "stok",
           "harga",
+          "harga_jual",
+          "harga_beli",
+          "margin",
           "created_at",
           "updated_at"
         ],
@@ -3852,6 +3968,20 @@
             "type": "integer",
             "minimum": 0,
             "example": 5000
+          },
+          "harga_jual": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5000
+          },
+          "harga_beli": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 4000
+          },
+          "margin": {
+            "type": "number",
+            "example": 25.00
           },
           "created_at": {
             "type": "string",
@@ -3892,8 +4022,7 @@
         "type": "object",
         "required": [
           "nama",
-          "stok",
-          "harga"
+          "harga_jual"
         ],
         "properties": {
           "nama": {
@@ -3907,15 +4036,24 @@
             "nullable": true,
             "example": "Sosro"
           },
-          "stok": {
-            "type": "integer",
-            "minimum": 0,
-            "example": 12
-          },
           "harga": {
             "type": "integer",
             "minimum": 0,
             "example": 5000
+          },
+          "harga_jual": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5000
+          },
+          "harga_beli": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 4000
+          },
+          "margin": {
+            "type": "number",
+            "example": 25.00
           },
           "category_id": {
             "type": "integer",
@@ -3948,15 +4086,24 @@
             "nullable": true,
             "example": "Sosro"
           },
-          "stok": {
-            "type": "integer",
-            "minimum": 0,
-            "example": 20
-          },
           "harga": {
             "type": "integer",
             "minimum": 0,
             "example": 5500
+          },
+          "harga_jual": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5500
+          },
+          "harga_beli": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 4000
+          },
+          "margin": {
+            "type": "number",
+            "example": 37.50
           },
           "category_id": {
             "type": "integer",
@@ -4679,7 +4826,8 @@
           "id",
           "stock_receiving_id",
           "product_id",
-          "kuantitas"
+          "kuantitas",
+          "harga_beli"
         ],
         "properties": {
           "id": {
@@ -4697,6 +4845,10 @@
           "kuantitas": {
             "type": "integer",
             "example": 10
+          },
+          "harga_beli": {
+            "type": "integer",
+            "example": 4000
           },
           "created_at": {
             "type": "string",
@@ -4735,7 +4887,8 @@
               "type": "object",
               "required": [
                 "product_id",
-                "kuantitas"
+                "kuantitas",
+                "harga_beli"
               ],
               "properties": {
                 "product_id": {
@@ -4746,6 +4899,24 @@
                   "type": "integer",
                   "minimum": 1,
                   "example": 10
+                },
+                "harga_beli": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 4000
+                },
+                "update_harga_jual": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "harga_jual_baru": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 5000
+                },
+                "margin_baru": {
+                  "type": "number",
+                  "example": 25.00
                 }
               }
             }

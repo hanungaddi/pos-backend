@@ -14,6 +14,12 @@ class StockReceivingItem extends Model
         'stock_receiving_id',
         'product_id',
         'kuantitas',
+        'harga_beli',
+    ];
+
+    protected $casts = [
+        'harga_beli' => 'integer',
+        'kuantitas' => 'integer',
     ];
 
     public function receiving(): BelongsTo

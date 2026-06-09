@@ -17,11 +17,14 @@ class Product extends Model
         'barcode',
         'stok',
         'harga',
+        'harga_beli',
+        'harga_jual',
+        'margin',
         'status',
         'image_path',
     ];
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'harga'];
 
     protected function casts(): array
     {
@@ -30,8 +33,54 @@ class Product extends Model
             'brand_id' => 'integer',
             'stok' => 'integer',
             'harga' => 'integer',
+            'harga_beli' => 'integer',
+            'harga_jual' => 'integer',
+            'margin' => 'float',
         ];
     }
+
+    protected static function booted()
+    {
+        static::saving(function (Product $product) {
+            $hargaBeli = (int) ($product->harga_beli ?? 0);
+            // Fallback to harga if harga_jual is not set
+            $hargaJual = (int) ($product->harga_jual ?? $product->harga ?? 0);
+            $margin = $product->margin !== null ? (float) $product->margin : null;
+
+            if ($hargaBeli > 0) {
+                if ($margin === null) {
+                    $product->margin = round((($hargaJual - $hargaBeli) / $hargaBeli) * 100, 2);
+                } elseif ($hargaJual === 0) {
+                    $product->harga_jual = (int) round($hargaBeli * (1 + $margin / 100));
+                } else {
+                    if ($product->isDirty('margin') && !$product->isDirty('harga_jual')) {
+                        $product->harga_jual = (int) round($hargaBeli * (1 + $margin / 100));
+                    } else {
+                        $product->margin = round((($hargaJual - $hargaBeli) / $hargaBeli) * 100, 2);
+                    }
+                }
+            } else {
+                $product->margin = 0.00;
+            }
+        });
+    }
+
+    /**
+     * Backward-compatible accessor for harga (maps to harga_jual).
+     */
+    public function getHargaAttribute(): int
+    {
+        return (int) ($this->attributes['harga_jual'] ?? 0);
+    }
+
+    /**
+     * Backward-compatible mutator for harga (maps to harga_jual).
+     */
+    public function setHargaAttribute($value): void
+    {
+        $this->attributes['harga_jual'] = $value;
+    }
+
 
     /**
      * Get the fully qualified URL to the product's image.

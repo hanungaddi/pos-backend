@@ -24,6 +24,10 @@ class StockReceivingRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.kuantitas' => ['required', 'integer', 'min:1'],
+            'items.*.harga_beli' => ['required', 'integer', 'min:0'],
+            'items.*.update_harga_jual' => ['nullable', 'boolean'],
+            'items.*.harga_jual_baru' => ['nullable', 'integer', 'min:0'],
+            'items.*.margin_baru' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 }

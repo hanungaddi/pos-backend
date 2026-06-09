@@ -160,7 +160,6 @@ class ProductEnhancementsTest extends TestCase
         $response = $this->actingAs($this->adminUser, 'sanctum')
             ->postJson('/api/v1/products', [
                 'nama' => 'Keripik Singkong',
-                'stok' => 50,
                 'harga' => 5000,
             ]);
 
@@ -201,7 +200,6 @@ class ProductEnhancementsTest extends TestCase
                 'nama' => 'Milo Box 1L',
                 'category_id' => $category->id,
                 'brand_id' => $brand->id,
-                'stok' => 25,
                 'harga' => 18000,
                 'image' => $image,
             ]);

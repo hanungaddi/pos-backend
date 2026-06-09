@@ -80,8 +80,10 @@ class ProductController extends Controller
             '*.nama' => ['required', 'string', 'max:255'],
             '*.merek' => ['nullable', 'string', 'max:255'],
             '*.barcode' => ['nullable', 'string', 'max:50', 'unique:products,barcode'],
-            '*.stok' => ['required', 'integer', 'min:0'],
-            '*.harga' => ['required', 'integer', 'min:0'],
+            '*.harga' => ['required_without:*.harga_jual', 'nullable', 'integer', 'min:0'],
+            '*.harga_jual' => ['required_without:*.harga', 'nullable', 'integer', 'min:0'],
+            '*.harga_beli' => ['nullable', 'integer', 'min:0'],
+            '*.margin' => ['nullable', 'numeric', 'min:0', 'max:100'],
             '*.status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
             '*.category_id' => ['nullable', 'integer', 'exists:categories,id'],
             '*.brand_id' => ['nullable', 'integer', 'exists:brands,id'],
@@ -89,8 +91,10 @@ class ProductController extends Controller
             'nama' => ['required', 'string', 'max:255'],
             'merek' => ['nullable', 'string', 'max:255'],
             'barcode' => ['nullable', 'string', 'max:50', 'unique:products,barcode'],
-            'stok' => ['required', 'integer', 'min:0'],
-            'harga' => ['required', 'integer', 'min:0'],
+            'harga' => ['required_without:harga_jual', 'nullable', 'integer', 'min:0'],
+            'harga_jual' => ['required_without:harga', 'nullable', 'integer', 'min:0'],
+            'harga_beli' => ['nullable', 'integer', 'min:0'],
+            'margin' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
@@ -118,6 +122,7 @@ class ProductController extends Controller
         }
 
         foreach ($products as $p) {
+            $p->refresh();
             $p->load(['category', 'brand']);
             ActivityLog::log('create_product', "Product '{$p->nama}' was created.", $p, ['new' => $p->toArray()]);
         }
@@ -140,8 +145,10 @@ class ProductController extends Controller
             'nama' => ['sometimes', 'required', 'string', 'max:255'],
             'merek' => ['nullable', 'string', 'max:255'],
             'barcode' => ['sometimes', 'nullable', 'string', 'max:50', Rule::unique('products', 'barcode')->ignore($product->id)],
-            'stok' => ['sometimes', 'required', 'integer', 'min:0'],
-            'harga' => ['sometimes', 'required', 'integer', 'min:0'],
+            'harga' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'harga_jual' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'harga_beli' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'margin' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'status' => ['sometimes', 'required', 'string', Rule::in(['active', 'inactive'])],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
             'brand_id' => ['sometimes', 'nullable', 'integer', 'exists:brands,id'],

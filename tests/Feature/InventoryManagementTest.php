@@ -111,6 +111,7 @@ class InventoryManagementTest extends TestCase
                     [
                         'product_id' => $this->product->id,
                         'kuantitas' => 20,
+                        'harga_beli' => 50000,
                     ]
                 ]
             ]);
@@ -136,7 +137,7 @@ class InventoryManagementTest extends TestCase
         $this->actingAs($this->supervisorUser, 'sanctum')
             ->postJson('/api/v1/inventory/receiving', [
                 'items' => [
-                    ['product_id' => $this->product->id, 'kuantitas' => 5]
+                    ['product_id' => $this->product->id, 'kuantitas' => 5, 'harga_beli' => 50000]
                 ]
             ])
             ->assertStatus(403);
