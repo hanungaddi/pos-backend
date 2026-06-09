@@ -142,6 +142,61 @@ class InventoryManagementTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_supervisor_can_view_receiving_and_opname_but_cannot_modify(): void
+    {
+        // 1. Create a receiving draft as manager
+        $receiving = StockReceiving::create([
+            'nomor_penerimaan' => 'RCV-001',
+            'supplier' => 'PT Test Supplier',
+            'nomor_faktur' => 'INV-001',
+            'status' => 'draft',
+            'user_id' => $this->managerUser->id,
+        ]);
+
+        // 2. Create an opname draft as manager
+        $opname = StockOpname::create([
+            'nomor_opname' => 'OPN-001',
+            'status' => 'draft',
+            'user_id' => $this->managerUser->id,
+        ]);
+
+        // 3. Supervisor can view list of receiving
+        $response = $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson('/api/v1/inventory/receiving');
+        $response->assertStatus(200)
+            ->assertJsonFragment(['nomor_faktur' => 'INV-001']);
+
+        // 4. Supervisor can view detail of receiving
+        $response = $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson("/api/v1/inventory/receiving/{$receiving->id}");
+        $response->assertStatus(200);
+
+        // 5. Supervisor can view list of opname
+        $response = $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson('/api/v1/inventory/opname');
+        $response->assertStatus(200)
+            ->assertJsonFragment(['nomor_opname' => 'OPN-001']);
+
+        // 6. Supervisor can view detail of opname
+        $response = $this->actingAs($this->supervisorUser, 'sanctum')
+            ->getJson("/api/v1/inventory/opname/{$opname->id}");
+        $response->assertStatus(200);
+
+        // 7. Supervisor CANNOT update receiving
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->putJson("/api/v1/inventory/receiving/{$receiving->id}", [
+                'supplier' => 'PT Changed'
+            ])
+            ->assertStatus(403);
+
+        // 8. Supervisor CANNOT update opname
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->putJson("/api/v1/inventory/opname/{$opname->id}", [
+                'status' => 'completed'
+            ])
+            ->assertStatus(403);
+    }
+
     public function test_manager_and_above_can_create_stock_adjustment(): void
     {
         // Negative adjustment (losses / damage)
