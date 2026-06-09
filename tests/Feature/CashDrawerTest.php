@@ -17,6 +17,7 @@ class CashDrawerTest extends TestCase
     protected User $cashierUser;
     protected User $otherCashierUser;
     protected User $supervisorUser;
+    protected User $managerUser;
     protected Product $product;
 
     protected function setUp(): void
@@ -51,6 +52,15 @@ class CashDrawerTest extends TestCase
             'store_id' => 1,
         ]);
         $this->supervisorUser->assignRole('supervisor');
+
+        $this->managerUser = User::create([
+            'name' => 'Manager User',
+            'username' => 'manager_user',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+            'store_id' => 1,
+        ]);
+        $this->managerUser->assignRole('manajer_toko');
 
         $this->product = Product::create([
             'nama' => 'Aqua 600ml',
@@ -212,7 +222,7 @@ class CashDrawerTest extends TestCase
             ])
             ->assertOk();
 
-        $this->actingAs($this->supervisorUser, 'sanctum')
+        $this->actingAs($this->managerUser, 'sanctum')
             ->postJson("/api/v1/transactions/{$transactionId}/void", [
                 'catatan_void' => 'Pembeli batal.',
             ])
@@ -259,7 +269,7 @@ class CashDrawerTest extends TestCase
             ])
             ->assertForbidden();
 
-        $this->actingAs($this->supervisorUser, 'sanctum')
+        $this->actingAs($this->managerUser, 'sanctum')
             ->postJson("/api/v1/cash-drawer/sessions/{$session->id}/cash-in", [
                 'amount' => 10000,
                 'note' => 'Supervisor menambah kas.',

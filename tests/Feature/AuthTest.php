@@ -53,8 +53,10 @@ class AuthTest extends TestCase
                 ]
             ])
             ->assertJsonPath('user.username', 'cashier_budi')
-            ->assertJsonPath('user.roles.0', 'kasir')
-            ->assertJsonPath('user.permissions.0', 'create_sales');
+            ->assertJsonPath('user.roles.0', 'kasir');
+
+        $this->assertContains('create_sales', $response->json('user.permissions'));
+        $this->assertContains('view_products', $response->json('user.permissions'));
 
         $this->assertNotEmpty($response->json('access_token'));
     }

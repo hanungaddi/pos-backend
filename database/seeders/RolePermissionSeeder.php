@@ -20,12 +20,18 @@ class RolePermissionSeeder extends Seeder
         // Define permissions
         $permissions = [
             'manage_users',
+            'view_users',
             'manage_products',
+            'view_products',
             'manage_sales',
             'view_reports',
             'create_sales',
+            'view_sales',
             'manage_inventory',
             'view_inventory',
+            'manage_suppliers',
+            'view_suppliers',
+            'view_audit_logs',
             'operate_cash_drawer',
             'manage_cash_drawer',
             'view_cash_drawer',
@@ -42,35 +48,41 @@ class RolePermissionSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions($permissions);
 
-        // Manajer Toko: can manage products, sales, reports, inventory, and cash drawer
+        // Manajer Toko: can manage users, products, sales, reports, inventory, suppliers, and cash drawer
         $manajerRole = Role::firstOrCreate(['name' => 'manajer_toko', 'guard_name' => 'web']);
         $manajerRole->syncPermissions([
+            'manage_users',
+            'view_users',
+            'view_audit_logs',
             'manage_products',
+            'view_products',
             'manage_sales',
             'view_reports',
             'create_sales',
+            'view_sales',
             'manage_inventory',
             'view_inventory',
+            'manage_suppliers',
+            'view_suppliers',
             'operate_cash_drawer',
             'manage_cash_drawer',
             'view_cash_drawer',
         ]);
 
-        // Supervisor: can manage products, sales, inventory visibility, and cash drawer
+        // Supervisor: can only read (view) products, inventory, sales, suppliers, and cash drawer
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions([
-            'manage_products',
-            'manage_sales',
-            'create_sales',
+            'view_products',
             'view_inventory',
-            'operate_cash_drawer',
-            'manage_cash_drawer',
+            'view_sales',
+            'view_suppliers',
             'view_cash_drawer',
         ]);
 
-        // Kasir: can create sales and operate their own cash drawer
+        // Kasir: can view products, create sales, and operate their own cash drawer
         $kasirRole = Role::firstOrCreate(['name' => 'kasir', 'guard_name' => 'web']);
         $kasirRole->syncPermissions([
+            'view_products',
             'create_sales',
             'operate_cash_drawer',
         ]);

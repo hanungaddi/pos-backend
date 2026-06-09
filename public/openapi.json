@@ -191,7 +191,7 @@
           "Auth"
         ],
         "summary": "List users",
-        "description": "Retrieves a paginated list of users. Access is restricted to users with 'manage_users' permission.",
+        "description": "Retrieves a paginated list of users. Access is restricted to users with 'view_users' or 'manage_users' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -327,7 +327,7 @@
           "Auth"
         ],
         "summary": "Get user details",
-        "description": "Retrieves the profile details of a single user. Access is restricted to users with 'manage_users' permission.",
+        "description": "Retrieves detailed information for a user. Access is restricted to users with 'view_users' or 'manage_users' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -380,7 +380,7 @@
           "Auth"
         ],
         "summary": "Update user",
-        "description": "Updates profile info, roles, and status of a user. Access is restricted to users with 'manage_users' permission.",
+        "description": "Updates an existing user. Access is restricted to users with 'manage_users' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -451,7 +451,7 @@
           "Auth"
         ],
         "summary": "Deactivate user",
-        "description": "Sets a user's status to 'inactive' to block login while preserving historical transaction records. Access is restricted to users with 'manage_users' permission.",
+        "description": "Deactivates a user. Access is restricted to users with 'manage_users' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -534,17 +534,35 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": { "type": "integer", "example": 1 },
-                          "name": { "type": "string", "example": "admin" },
-                          "guard_name": { "type": "string", "example": "web" },
+                          "id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "admin"
+                          },
+                          "guard_name": {
+                            "type": "string",
+                            "example": "web"
+                          },
                           "permissions": {
                             "type": "array",
                             "items": {
                               "type": "object",
                               "properties": {
-                                "id": { "type": "integer", "example": 1 },
-                                "name": { "type": "string", "example": "manage_users" },
-                                "guard_name": { "type": "string", "example": "web" }
+                                "id": {
+                                  "type": "integer",
+                                  "example": 1
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "example": "manage_users"
+                                },
+                                "guard_name": {
+                                  "type": "string",
+                                  "example": "web"
+                                }
                               }
                             }
                           }
@@ -598,9 +616,18 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": { "type": "integer", "example": 1 },
-                          "name": { "type": "string", "example": "manage_users" },
-                          "guard_name": { "type": "string", "example": "web" }
+                          "id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "manage_users"
+                          },
+                          "guard_name": {
+                            "type": "string",
+                            "example": "web"
+                          }
                         }
                       }
                     }
@@ -660,7 +687,10 @@
                     "items": {
                       "type": "string"
                     },
-                    "example": ["manage_products", "manage_users"]
+                    "example": [
+                      "manage_products",
+                      "manage_users"
+                    ]
                   }
                 }
               }
@@ -675,15 +705,35 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "type": "string", "example": "success" },
-                    "message": { "type": "string", "example": "Permission berhasil ditambahkan ke role." },
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission berhasil ditambahkan ke role."
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": { "type": "integer", "example": 2 },
-                        "name": { "type": "string", "example": "kasir" },
-                        "guard_name": { "type": "string", "example": "web" },
-                        "permissions": { "type": "array", "items": { "type": "object" } }
+                        "id": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "kasir"
+                        },
+                        "guard_name": {
+                          "type": "string",
+                          "example": "web"
+                        },
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
                       }
                     }
                   }
@@ -745,15 +795,35 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "type": "string", "example": "success" },
-                    "message": { "type": "string", "example": "Permission berhasil dihapus dari role." },
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission berhasil dihapus dari role."
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": { "type": "integer", "example": 2 },
-                        "name": { "type": "string", "example": "kasir" },
-                        "guard_name": { "type": "string", "example": "web" },
-                        "permissions": { "type": "array", "items": { "type": "object" } }
+                        "id": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "kasir"
+                        },
+                        "guard_name": {
+                          "type": "string",
+                          "example": "web"
+                        },
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
                       }
                     }
                   }
@@ -1401,7 +1471,8 @@
           {
             "BearerAuth": []
           }
-        ]
+        ],
+        "description": "List all products. Access is restricted to users with 'view_products' or 'manage_products' permission."
       },
       "post": {
         "tags": [
@@ -1476,7 +1547,8 @@
           {
             "BearerAuth": []
           }
-        ]
+        ],
+        "description": "Create a new product. Access is restricted to users with 'manage_products' permission."
       }
     },
     "/api/v1/products/{product}": {
@@ -1509,7 +1581,8 @@
           {
             "BearerAuth": []
           }
-        ]
+        ],
+        "description": "Get product details. Access is restricted to users with 'view_products' or 'manage_products' permission."
       },
       "put": {
         "tags": [
@@ -1559,7 +1632,8 @@
           {
             "BearerAuth": []
           }
-        ]
+        ],
+        "description": "Update product details. Access is restricted to users with 'manage_products' permission."
       },
       "patch": {
         "tags": [
@@ -1630,7 +1704,8 @@
           {
             "BearerAuth": []
           }
-        ]
+        ],
+        "description": "Delete product. Access is restricted to users with 'manage_products' permission."
       }
     },
     "/api/v1/products/barcode/{barcode}": {
@@ -1639,7 +1714,7 @@
           "Products"
         ],
         "summary": "Get product by barcode",
-        "description": "Retrieve active product detail by barcode. Accessible by all authenticated roles.",
+        "description": "Get active product by barcode. Access is restricted to users with 'view_products' or 'manage_products' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -1671,7 +1746,7 @@
           "Products"
         ],
         "summary": "Change product status",
-        "description": "Toggles product status between active and inactive. Restricted to manage_products permission.",
+        "description": "Change product status. Access is restricted to users with 'manage_products' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -2716,7 +2791,7 @@
           "Activity Logs"
         ],
         "summary": "Retrieve activity logs",
-        "description": "Get a paginated, filterable, and searchable list of system activity logs. Restricted to users with manage_users permission.",
+        "description": "Retrieves system and user activity audit logs. Access is restricted to users with 'view_audit_logs' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -2797,7 +2872,7 @@
           "Suppliers"
         ],
         "summary": "Get all suppliers (non-paginated)",
-        "description": "List all suppliers for dropdown selects. Restricted to manage_inventory permission.",
+        "description": "Get all suppliers without pagination. Access is restricted to users with 'view_suppliers' or 'manage_suppliers' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -2816,7 +2891,7 @@
           "Suppliers"
         ],
         "summary": "List paginated suppliers",
-        "description": "Get a paginated list of suppliers. Restricted to manage_inventory permission.",
+        "description": "Get a paginated list of suppliers. Access is restricted to users with 'view_suppliers' or 'manage_suppliers' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -2861,7 +2936,7 @@
           "Suppliers"
         ],
         "summary": "Create new supplier",
-        "description": "Register a new supplier master data. Restricted to manage_inventory permission.",
+        "description": "Register a new supplier master data. Access is restricted to users with 'manage_suppliers' permission.",
         "security": [
           {
             "BearerAuth": []
@@ -2930,7 +3005,8 @@
           "200": {
             "description": "Supplier details."
           }
-        }
+        },
+        "description": "Get details for a specific supplier. Access is restricted to users with 'view_suppliers' or 'manage_suppliers' permission."
       },
       "put": {
         "tags": [
@@ -2987,7 +3063,8 @@
           "200": {
             "description": "Supplier updated."
           }
-        }
+        },
+        "description": "Update an existing supplier. Access is restricted to users with 'manage_suppliers' permission."
       },
       "delete": {
         "tags": [
@@ -3013,7 +3090,8 @@
           "200": {
             "description": "Supplier deleted."
           }
-        }
+        },
+        "description": "Delete an existing supplier. Access is restricted to users with 'manage_suppliers' permission."
       }
     },
     "/api/v1/inventory/receiving/{id}/payment-status": {

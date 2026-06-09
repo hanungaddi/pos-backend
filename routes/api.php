@@ -31,10 +31,26 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // User Management CRUD Routes
-    Route::middleware(['auth:sanctum', 'permission:manage_users'])->group(function () {
-        Route::apiResource('users', UserController::class);
-        Route::get('activity-logs', [ActivityLogController::class, 'index']);
+    // User Management & Activity Logs
+    Route::middleware(['auth:sanctum'])->group(function () {
+        // Read Users
+        Route::middleware(['permission:view_users|manage_users'])->group(function () {
+            Route::get('users', [UserController::class, 'index']);
+            Route::get('users/{user}', [UserController::class, 'show']);
+        });
+
+        // Write/Modify Users
+        Route::middleware(['permission:manage_users'])->group(function () {
+            Route::post('users', [UserController::class, 'store']);
+            Route::put('users/{user}', [UserController::class, 'update']);
+            Route::patch('users/{user}', [UserController::class, 'update']);
+            Route::delete('users/{user}', [UserController::class, 'destroy']);
+        });
+
+        // Activity Logs
+        Route::middleware(['permission:view_audit_logs'])->group(function () {
+            Route::get('activity-logs', [ActivityLogController::class, 'index']);
+        });
     });
 
     // Role & Permission Management (Only Admin)
@@ -47,20 +63,22 @@ Route::prefix('v1')->group(function () {
 
     // Product, Category, and Brand V1 Routes
     Route::middleware(['auth:sanctum'])->group(function () {
-        // Authenticated Read for All (Kasir, Supervisor, Manajer, Admin)
-        Route::get('products', [ProductController::class, 'index']);
-        Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
-        Route::get('products/{product}', [ProductController::class, 'show']);
-        Route::get('products/{id}/print-barcode', [ProductController::class, 'printBarcode']);
-        Route::match(['get', 'post'], 'products/print-barcodes', [ProductController::class, 'printBarcodesBulk']);
+        // Read Products
+        Route::middleware(['permission:view_products|manage_products'])->group(function () {
+            Route::get('products', [ProductController::class, 'index']);
+            Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
+            Route::get('products/{product}', [ProductController::class, 'show']);
+            Route::get('products/{id}/print-barcode', [ProductController::class, 'printBarcode']);
+            Route::match(['get', 'post'], 'products/print-barcodes', [ProductController::class, 'printBarcodesBulk']);
 
-        Route::get('categories', [CategoryController::class, 'index']);
-        Route::get('categories/{category}', [CategoryController::class, 'show']);
+            Route::get('categories', [CategoryController::class, 'index']);
+            Route::get('categories/{category}', [CategoryController::class, 'show']);
 
-        Route::get('brands', [BrandController::class, 'index']);
-        Route::get('brands/{brand}', [BrandController::class, 'show']);
+            Route::get('brands', [BrandController::class, 'index']);
+            Route::get('brands/{brand}', [BrandController::class, 'show']); 
+        });
 
-        // Manage Catalog (Supervisor, Manajer, Admin)
+        // Manage Products
         Route::middleware(['permission:manage_products'])->group(function () {
             Route::post('products', [ProductController::class, 'store']);
             Route::put('products/{product}', [ProductController::class, 'update']);
@@ -98,12 +116,15 @@ Route::prefix('v1')->group(function () {
             });
         });
 
+        // Read Transactions (Supervisor+)
+        Route::middleware(['permission:view_sales|create_sales'])->group(function () {
+            Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
+        });
+
         // Cashier+ Operations (create_sales)
         Route::middleware(['permission:create_sales'])->group(function () {
-            Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
             Route::get('transactions/on-hold', [TransactionController::class, 'listOnHold']);
             Route::post('transactions', [TransactionController::class, 'store']);
-            Route::get('transactions/{transaction}', [TransactionController::class, 'show']);
             Route::post('transactions/{transaction}/items', [TransactionController::class, 'addItem']);
             Route::put('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'updateItem']);
             Route::delete('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'removeItem']);
@@ -112,6 +133,11 @@ Route::prefix('v1')->group(function () {
             Route::post('transactions/{transaction}/pay/cash', [TransactionController::class, 'payCash']);
             Route::post('transactions/{transaction}/pay/card', [TransactionController::class, 'payCard']);
             Route::post('transactions/{transaction}/pay/split', [TransactionController::class, 'paySplit']);
+        });
+
+        // Read Transaction Detail (Supervisor+) - Defined after on-hold to prevent route mismatch
+        Route::middleware(['permission:view_sales|create_sales'])->group(function () {
+            Route::get('transactions/{transaction}', [TransactionController::class, 'show']);
         });
 
         // Supervisor+ Operations (manage_sales)
@@ -128,31 +154,42 @@ Route::prefix('v1')->group(function () {
 
     // Inventory Management Routes
     Route::middleware(['auth:sanctum'])->prefix('inventory')->group(function () {
-        // Movements (Supervisor+)
-        Route::middleware(['permission:view_inventory'])->group(function () {
+        // Inventory Read-Only (Supervisor+)
+        Route::middleware(['permission:view_inventory|manage_inventory'])->group(function () {
             Route::get('movements', [StockMovementController::class, 'index']);
             Route::get('movements/{productId}', [StockMovementController::class, 'showByProduct']);
+            Route::get('receiving', [StockReceivingController::class, 'index']);
+            Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
+            Route::get('opname', [StockOpnameController::class, 'index']);
+            Route::get('opname/{id}', [StockOpnameController::class, 'show']);
         });
 
         // Operations (Manager+)
         Route::middleware(['permission:manage_inventory'])->group(function () {
-            Route::get('receiving', [StockReceivingController::class, 'index']);
             Route::post('receiving', [StockReceivingController::class, 'store']);
-            Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
             Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
             Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
             Route::patch('receiving/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
 
             Route::post('adjustment', [StockAdjustmentController::class, 'store']);
 
-            Route::get('opname', [StockOpnameController::class, 'index']);
             Route::post('opname', [StockOpnameController::class, 'store']);
-            Route::get('opname/{id}', [StockOpnameController::class, 'show']);
             Route::put('opname/{id}', [StockOpnameController::class, 'update']);
             Route::delete('opname/{id}', [StockOpnameController::class, 'destroy']);
+        });
 
+        // Suppliers Read-Only
+        Route::middleware(['permission:view_suppliers|manage_suppliers'])->group(function () {
             Route::get('suppliers/all', [SupplierController::class, 'all']);
-            Route::apiResource('suppliers', SupplierController::class);
+            Route::get('suppliers', [SupplierController::class, 'index']);
+            Route::get('suppliers/{id}', [SupplierController::class, 'show']);
+        });
+
+        // Suppliers Write/Modify
+        Route::middleware(['permission:manage_suppliers'])->group(function () {
+            Route::post('suppliers', [SupplierController::class, 'store']);
+            Route::put('suppliers/{id}', [SupplierController::class, 'update']);
+            Route::delete('suppliers/{id}', [SupplierController::class, 'destroy']);
         });
     });
 });
