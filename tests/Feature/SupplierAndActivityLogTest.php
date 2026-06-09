@@ -154,6 +154,7 @@ class SupplierAndActivityLogTest extends TestCase
                     [
                         'product_id' => $this->product->id,
                         'kuantitas' => 10,
+                        'harga_beli' => 50000,
                     ]
                 ]
             ]);
@@ -188,6 +189,7 @@ class SupplierAndActivityLogTest extends TestCase
                     [
                         'product_id' => $this->product->id,
                         'kuantitas' => 10,
+                        'harga_beli' => 50000,
                     ]
                 ]
             ]);

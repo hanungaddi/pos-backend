@@ -33,14 +33,13 @@ class PosApiTest extends TestCase
             ->postJson('/api/v1/products', [
                 'nama' => 'Teh Botol',
                 'merek' => 'Sosro',
-                'stok' => 12,
                 'harga' => 5000,
             ]);
 
         $response
             ->assertCreated()
             ->assertJsonPath('data.nama', 'Teh Botol')
-            ->assertJsonPath('data.stok', 12)
+            ->assertJsonPath('data.stok', 0)
             ->assertJsonPath('data.harga', 5000);
 
         $this->assertDatabaseHas('products', [

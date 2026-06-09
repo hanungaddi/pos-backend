@@ -25,7 +25,7 @@ class DatabaseSeederTest extends TestCase
             'nama' => 'Kopi Sachet',
             'merek' => 'Kapal Api',
             'stok' => 40,
-            'harga' => 1500,
+            'harga_jual' => 1500,
         ]);
     }
 }

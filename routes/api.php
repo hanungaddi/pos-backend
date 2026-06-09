@@ -166,6 +166,7 @@ Route::prefix('v1')->group(function () {
 
         // Operations (Manager+)
         Route::middleware(['permission:manage_inventory'])->group(function () {
+            Route::post('receiving/compare-prices', [StockReceivingController::class, 'comparePrices']);
             Route::post('receiving', [StockReceivingController::class, 'store']);
             Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
             Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
