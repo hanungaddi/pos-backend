@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\V1\StockOpnameController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\ActivityLogController;
 use App\Http\Controllers\Api\V1\CashDrawerController;
+use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\RolePermissionController;
 
 // API Routes V1
@@ -59,13 +61,21 @@ Route::prefix('v1')->group(function () {
         Route::delete('roles/{role}/permissions/{permission}', [RolePermissionController::class, 'revokePermission']);
     });
 
-    // Product V1 Routes
+    // Product, Category, and Brand V1 Routes
     Route::middleware(['auth:sanctum'])->group(function () {
         // Read Products
         Route::middleware(['permission:view_products|manage_products'])->group(function () {
             Route::get('products', [ProductController::class, 'index']);
             Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
             Route::get('products/{product}', [ProductController::class, 'show']);
+            Route::get('products/{id}/print-barcode', [ProductController::class, 'printBarcode']);
+            Route::match(['get', 'post'], 'products/print-barcodes', [ProductController::class, 'printBarcodesBulk']);
+
+            Route::get('categories', [CategoryController::class, 'index']);
+            Route::get('categories/{category}', [CategoryController::class, 'show']);
+
+            Route::get('brands', [BrandController::class, 'index']);
+            Route::get('brands/{brand}', [BrandController::class, 'show']); 
         });
 
         // Manage Products
@@ -74,6 +84,14 @@ Route::prefix('v1')->group(function () {
             Route::put('products/{product}', [ProductController::class, 'update']);
             Route::delete('products/{product}', [ProductController::class, 'destroy']);
             Route::patch('products/{product}/status', [ProductController::class, 'changeStatus']);
+
+            Route::post('categories', [CategoryController::class, 'store']);
+            Route::put('categories/{category}', [CategoryController::class, 'update']);
+            Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
+
+            Route::post('brands', [BrandController::class, 'store']);
+            Route::put('brands/{brand}', [BrandController::class, 'update']);
+            Route::delete('brands/{brand}', [BrandController::class, 'destroy']);
         });
     });
 

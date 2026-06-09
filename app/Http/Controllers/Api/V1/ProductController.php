@@ -4,22 +4,35 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ActivityLog;
+use App\Services\BarcodeGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Product::query();
+        // Eager load category and brand relations
+        $query = Product::query()->with(['category', 'brand']);
 
         // Kasir can only see active products
         if ($request->user() && $request->user()->hasRole('kasir')) {
             $query->where('status', 'active');
         }
 
-        // Support both 'search' (standardized) and 'q' (fallback)
+        // Support filtering by category_id and brand_id
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->integer('category_id'));
+        }
+
+        if ($request->filled('brand_id')) {
+            $query->where('brand_id', $request->integer('brand_id'));
+        }
+
+        // Support both 'search' and 'q'
         $search = $request->input('search') ?? $request->input('q');
         if (!empty($search)) {
             $keyword = (string) $search;
@@ -27,7 +40,13 @@ class ProductController extends Controller
             $query->where(function ($query) use ($keyword) {
                 $query->where('nama', 'like', "%{$keyword}%")
                     ->orWhere('merek', 'like', "%{$keyword}%")
-                    ->orWhere('barcode', 'like', "%{$keyword}%");
+                    ->orWhere('barcode', 'like', "%{$keyword}%")
+                    ->orWhereHas('category', function ($q) use ($keyword) {
+                        $q->where('nama', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('brand', function ($q) use ($keyword) {
+                        $q->where('nama', 'like', "%{$keyword}%");
+                    });
             });
         }
 
@@ -46,7 +65,7 @@ class ProductController extends Controller
             $query->orderBy('nama', 'asc');
         }
 
-        // Paginate, default to 1000 for checkout/offline-first support
+        // Paginate, default to 1000
         $products = $query->paginate($request->integer('per_page', 1000));
 
         return $this->responsePaginated($products);
@@ -64,6 +83,8 @@ class ProductController extends Controller
             '*.stok' => ['required', 'integer', 'min:0'],
             '*.harga' => ['required', 'integer', 'min:0'],
             '*.status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
+            '*.category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            '*.brand_id' => ['nullable', 'integer', 'exists:brands,id'],
         ] : [
             'nama' => ['required', 'string', 'max:255'],
             'merek' => ['nullable', 'string', 'max:255'],
@@ -71,14 +92,34 @@ class ProductController extends Controller
             'stok' => ['required', 'integer', 'min:0'],
             'harga' => ['required', 'integer', 'min:0'],
             'status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
+            'image' => ['nullable', 'image', 'max:2048'],
         ]);
 
-        $products = collect($isBulk ? $validated : [$validated])
-            ->map(fn (array $product) => Product::create($product))
-            ->values();
+        if ($isBulk) {
+            foreach ($validated as &$item) {
+                if (empty($item['barcode'])) {
+                    $item['barcode'] = Product::generateUniqueBarcode();
+                }
+            }
+            $products = collect($validated)->map(function (array $p) {
+                return Product::create($p);
+            })->values();
+        } else {
+            if (empty($validated['barcode'])) {
+                $validated['barcode'] = Product::generateUniqueBarcode();
+            }
+            if ($request->hasFile('image')) {
+                $path = $request->file('image')->store('products', 'public');
+                $validated['image_path'] = $path;
+            }
+            $products = collect([Product::create($validated)]);
+        }
 
         foreach ($products as $p) {
-            \App\Models\ActivityLog::log('create_product', "Product '{$p->nama}' was created.", $p, ['new' => $p->toArray()]);
+            $p->load(['category', 'brand']);
+            ActivityLog::log('create_product', "Product '{$p->nama}' was created.", $p, ['new' => $p->toArray()]);
         }
 
         return $this->responseSuccess(
@@ -90,7 +131,7 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
-        return $this->responseSuccess($product, 'Detail produk berhasil dimuat.');
+        return $this->responseSuccess($product->load(['category', 'brand']), 'Detail produk berhasil dimuat.');
     }
 
     public function update(Request $request, Product $product): JsonResponse
@@ -102,7 +143,19 @@ class ProductController extends Controller
             'stok' => ['sometimes', 'required', 'integer', 'min:0'],
             'harga' => ['sometimes', 'required', 'integer', 'min:0'],
             'status' => ['sometimes', 'required', 'string', Rule::in(['active', 'inactive'])],
+            'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+            'brand_id' => ['sometimes', 'nullable', 'integer', 'exists:brands,id'],
+            'image' => ['sometimes', 'nullable', 'image', 'max:2048'],
         ]);
+
+        if ($request->hasFile('image')) {
+            // Delete old image file
+            if ($product->image_path) {
+                Storage::disk('public')->delete($product->image_path);
+            }
+            $path = $request->file('image')->store('products', 'public');
+            $validated['image_path'] = $path;
+        }
 
         $oldData = array_intersect_key($product->getOriginal(), $validated);
 
@@ -110,13 +163,13 @@ class ProductController extends Controller
 
         $changes = $product->getChanges();
         if (!empty($changes)) {
-            \App\Models\ActivityLog::log('update_product', "Product '{$product->nama}' was updated.", $product, [
+            ActivityLog::log('update_product', "Product '{$product->nama}' was updated.", $product, [
                 'old' => array_intersect_key($oldData, $changes),
                 'new' => $changes
             ]);
         }
 
-        return $this->responseSuccess($product, 'Produk berhasil diperbarui.');
+        return $this->responseSuccess($product->load(['category', 'brand']), 'Produk berhasil diperbarui.');
     }
 
     public function destroy(Product $product): JsonResponse
@@ -124,9 +177,14 @@ class ProductController extends Controller
         $productName = $product->nama;
         $oldData = $product->toArray();
 
+        // Delete associated image file
+        if ($product->image_path) {
+            Storage::disk('public')->delete($product->image_path);
+        }
+
         $product->delete();
 
-        \App\Models\ActivityLog::log('delete_product', "Product '{$productName}' was deleted.", null, ['old' => $oldData]);
+        ActivityLog::log('delete_product', "Product '{$productName}' was deleted.", null, ['old' => $oldData]);
 
         return $this->responseSuccess(null, 'Produk berhasil dihapus.');
     }
@@ -141,12 +199,12 @@ class ProductController extends Controller
 
         $product->update(['status' => $validated['status']]);
 
-        \App\Models\ActivityLog::log('change_product_status', "Product '{$product->nama}' status changed to '{$validated['status']}'.", $product, [
+        ActivityLog::log('change_product_status', "Product '{$product->nama}' status changed to '{$validated['status']}'.", $product, [
             'old' => ['status' => $oldStatus],
             'new' => ['status' => $validated['status']]
         ]);
 
-        return $this->responseSuccess($product, 'Status produk berhasil diperbarui.');
+        return $this->responseSuccess($product->load(['category', 'brand']), 'Status produk berhasil diperbarui.');
     }
 
     public function showByBarcode(string $barcode, Request $request): JsonResponse
@@ -162,6 +220,94 @@ class ProductController extends Controller
             return response()->json(['message' => 'Produk tidak aktif.'], 403);
         }
 
-        return $this->responseSuccess($product, 'Produk berhasil ditemukan.');
+        return $this->responseSuccess($product->load(['category', 'brand']), 'Produk berhasil ditemukan.');
+    }
+
+    /**
+     * Print standard grid of barcodes for a single product.
+     */
+    public function printBarcode(Request $request, int $id)
+    {
+        $product = Product::with('brand')->find($id);
+        if (!$product) {
+            return response()->json(['message' => 'Produk tidak ditemukan.'], 404);
+        }
+
+        $qty = $request->integer('quantity', 30); // Default to full sheet (30 labels)
+
+        // Force generate barcode if somehow empty
+        $barcodeText = $product->barcode ?: Product::generateUniqueBarcode();
+        if (!$product->barcode) {
+            $product->update(['barcode' => $barcodeText]);
+        }
+
+        // Render barcode SVG using our service
+        $svg = BarcodeGenerator::getSvg($barcodeText, 40, 2);
+        
+        $labels = [];
+        for ($i = 0; $i < $qty; $i++) {
+            $labels[] = [
+                'nama' => $product->nama,
+                'barcode' => $barcodeText,
+                'svg' => $svg,
+                'harga' => $product->harga,
+                'brand' => $product->brand?->nama ?: $product->merek ?: 'MSG POS',
+            ];
+        }
+
+        return view('barcode-print', compact('labels'));
+    }
+
+    /**
+     * Print grid of barcodes for multiple products in bulk.
+     */
+    public function printBarcodesBulk(Request $request)
+    {
+        $productsInput = $request->input('products');
+        if (is_string($productsInput)) {
+            $productsInput = json_decode($productsInput, true);
+        }
+
+        if (empty($productsInput) || !is_array($productsInput)) {
+            return response()->json(['message' => 'Input produk tidak valid.'], 422);
+        }
+
+        $labels = [];
+        foreach ($productsInput as $item) {
+            $productId = $item['id'] ?? null;
+            $qty = $item['quantity'] ?? 1;
+
+            if (!$productId) {
+                continue;
+            }
+
+            $product = Product::with('brand')->find($productId);
+            if (!$product) {
+                continue;
+            }
+
+            $barcodeText = $product->barcode ?: Product::generateUniqueBarcode();
+            if (!$product->barcode) {
+                $product->update(['barcode' => $barcodeText]);
+            }
+
+            $svg = BarcodeGenerator::getSvg($barcodeText, 40, 2);
+
+            for ($i = 0; $i < $qty; $i++) {
+                $labels[] = [
+                    'nama' => $product->nama,
+                    'barcode' => $barcodeText,
+                    'svg' => $svg,
+                    'harga' => $product->harga,
+                    'brand' => $product->brand?->nama ?: $product->merek ?: 'MSG POS',
+                ];
+            }
+        }
+
+        if (empty($labels)) {
+            return response()->json(['message' => 'Tidak ada label barcode yang dapat dicetak.'], 422);
+        }
+
+        return view('barcode-print', compact('labels'));
     }
 }
