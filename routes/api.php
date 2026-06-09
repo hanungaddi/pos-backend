@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\ActivityLogController;
 use App\Http\Controllers\Api\V1\CashDrawerController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\BrandController;
+use App\Http\Controllers\Api\V1\RolePermissionController;
 
 // API Routes V1
 Route::prefix('v1')->group(function () {
@@ -34,6 +35,14 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'permission:manage_users'])->group(function () {
         Route::apiResource('users', UserController::class);
         Route::get('activity-logs', [ActivityLogController::class, 'index']);
+    });
+
+    // Role & Permission Management (Only Admin)
+    Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+        Route::get('roles', [RolePermissionController::class, 'indexRoles']);
+        Route::get('permissions', [RolePermissionController::class, 'indexPermissions']);
+        Route::post('roles/{role}/permissions', [RolePermissionController::class, 'assignPermission']);
+        Route::delete('roles/{role}/permissions/{permission}', [RolePermissionController::class, 'revokePermission']);
     });
 
     // Product, Category, and Brand V1 Routes
