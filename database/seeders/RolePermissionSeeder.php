@@ -24,6 +24,7 @@ class RolePermissionSeeder extends Seeder
             'manage_sales',
             'view_reports',
             'create_sales',
+            'view_sales',
             'manage_inventory',
             'view_inventory',
             'operate_cash_drawer',
@@ -49,6 +50,7 @@ class RolePermissionSeeder extends Seeder
             'manage_sales',
             'view_reports',
             'create_sales',
+            'view_sales',
             'manage_inventory',
             'view_inventory',
             'operate_cash_drawer',
@@ -56,15 +58,11 @@ class RolePermissionSeeder extends Seeder
             'view_cash_drawer',
         ]);
 
-        // Supervisor: can manage products, sales, inventory visibility, and cash drawer
+        // Supervisor: can only read (view) inventory, sales, and cash drawer
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions([
-            'manage_products',
-            'manage_sales',
-            'create_sales',
             'view_inventory',
-            'operate_cash_drawer',
-            'manage_cash_drawer',
+            'view_sales',
             'view_cash_drawer',
         ]);
 

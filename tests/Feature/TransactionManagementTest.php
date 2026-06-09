@@ -301,8 +301,14 @@ class TransactionManagementTest extends TestCase
                 'catatan_void' => 'Salah input jumlah barang',
             ])->assertStatus(403);
 
-        // 3. Supervisor voids (should succeed 200)
-        $response = $this->actingAs($this->supervisorUser, 'sanctum')
+        // 3. Supervisor tries to void (should fail 403 since supervisor is now read-only)
+        $this->actingAs($this->supervisorUser, 'sanctum')
+            ->postJson("/api/v1/transactions/{$trxId}/void", [
+                'catatan_void' => 'Supervisor tries to void',
+            ])->assertStatus(403);
+
+        // 4. Admin voids (should succeed 200)
+        $response = $this->actingAs($this->adminUser, 'sanctum')
             ->postJson("/api/v1/transactions/{$trxId}/void", [
                 'catatan_void' => 'Supervisor void request',
             ]);
@@ -310,7 +316,7 @@ class TransactionManagementTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.status', 'void')
             ->assertJsonPath('data.catatan_void', 'Supervisor void request')
-            ->assertJsonPath('data.void_by.id', $this->supervisorUser->id);
+            ->assertJsonPath('data.void_by.id', $this->adminUser->id);
 
         // Product stock restored back to 10
         $this->assertEquals(10, $this->product2->fresh()->stok);

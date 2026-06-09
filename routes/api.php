@@ -80,12 +80,15 @@ Route::prefix('v1')->group(function () {
             });
         });
 
+        // Read Transactions (Supervisor+)
+        Route::middleware(['permission:view_sales|create_sales'])->group(function () {
+            Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
+        });
+
         // Cashier+ Operations (create_sales)
         Route::middleware(['permission:create_sales'])->group(function () {
-            Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
             Route::get('transactions/on-hold', [TransactionController::class, 'listOnHold']);
             Route::post('transactions', [TransactionController::class, 'store']);
-            Route::get('transactions/{transaction}', [TransactionController::class, 'show']);
             Route::post('transactions/{transaction}/items', [TransactionController::class, 'addItem']);
             Route::put('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'updateItem']);
             Route::delete('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'removeItem']);
@@ -94,6 +97,11 @@ Route::prefix('v1')->group(function () {
             Route::post('transactions/{transaction}/pay/cash', [TransactionController::class, 'payCash']);
             Route::post('transactions/{transaction}/pay/card', [TransactionController::class, 'payCard']);
             Route::post('transactions/{transaction}/pay/split', [TransactionController::class, 'paySplit']);
+        });
+
+        // Read Transaction Detail (Supervisor+) - Defined after on-hold to prevent route mismatch
+        Route::middleware(['permission:view_sales|create_sales'])->group(function () {
+            Route::get('transactions/{transaction}', [TransactionController::class, 'show']);
         });
 
         // Supervisor+ Operations (manage_sales)
@@ -110,26 +118,26 @@ Route::prefix('v1')->group(function () {
 
     // Inventory Management Routes
     Route::middleware(['auth:sanctum'])->prefix('inventory')->group(function () {
-        // Movements (Supervisor+)
-        Route::middleware(['permission:view_inventory'])->group(function () {
+        // Inventory Read-Only (Supervisor+)
+        Route::middleware(['permission:view_inventory|manage_inventory'])->group(function () {
             Route::get('movements', [StockMovementController::class, 'index']);
             Route::get('movements/{productId}', [StockMovementController::class, 'showByProduct']);
+            Route::get('receiving', [StockReceivingController::class, 'index']);
+            Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
+            Route::get('opname', [StockOpnameController::class, 'index']);
+            Route::get('opname/{id}', [StockOpnameController::class, 'show']);
         });
 
         // Operations (Manager+)
         Route::middleware(['permission:manage_inventory'])->group(function () {
-            Route::get('receiving', [StockReceivingController::class, 'index']);
             Route::post('receiving', [StockReceivingController::class, 'store']);
-            Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
             Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
             Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
             Route::patch('receiving/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
 
             Route::post('adjustment', [StockAdjustmentController::class, 'store']);
 
-            Route::get('opname', [StockOpnameController::class, 'index']);
             Route::post('opname', [StockOpnameController::class, 'store']);
-            Route::get('opname/{id}', [StockOpnameController::class, 'show']);
             Route::put('opname/{id}', [StockOpnameController::class, 'update']);
             Route::delete('opname/{id}', [StockOpnameController::class, 'destroy']);
 
