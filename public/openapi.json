@@ -493,6 +493,281 @@
         }
       }
     },
+    "/api/v1/roles": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "List all roles",
+        "description": "Retrieves all roles with their assigned permissions. Access is restricted to admin.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Daftar role dan permission berhasil dimuat."
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer", "example": 1 },
+                          "name": { "type": "string", "example": "admin" },
+                          "guard_name": { "type": "string", "example": "web" },
+                          "permissions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer", "example": 1 },
+                                "name": { "type": "string", "example": "manage_users" },
+                                "guard_name": { "type": "string", "example": "web" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden - Admin role required."
+          }
+        }
+      }
+    },
+    "/api/v1/permissions": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "List all permissions",
+        "description": "Retrieves all available permissions in the system. Access is restricted to admin.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Daftar permission berhasil dimuat."
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer", "example": 1 },
+                          "name": { "type": "string", "example": "manage_users" },
+                          "guard_name": { "type": "string", "example": "web" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden - Admin role required."
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{role}/permissions": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Assign permission to role",
+        "description": "Assigns one or more permissions to a role. Resolves role by ID or Name. Access is restricted to admin.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "path",
+            "description": "Role ID or Name.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "kasir"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "permission": {
+                    "type": "string",
+                    "description": "Single permission name to assign.",
+                    "example": "manage_products"
+                  },
+                  "permissions": {
+                    "type": "array",
+                    "description": "Multiple permission names to assign.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": ["manage_products", "manage_users"]
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "message": { "type": "string", "example": "Permission berhasil ditambahkan ke role." },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer", "example": 2 },
+                        "name": { "type": "string", "example": "kasir" },
+                        "guard_name": { "type": "string", "example": "web" },
+                        "permissions": { "type": "array", "items": { "type": "object" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden - Admin role required."
+          },
+          "404": {
+            "description": "Role or Permission not found."
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{role}/permissions/{permission}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Revoke permission from role",
+        "description": "Revokes a permission from a role. Resolves role and permission by ID or Name. Access is restricted to admin.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "path",
+            "description": "Role ID or Name.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "kasir"
+            }
+          },
+          {
+            "name": "permission",
+            "in": "path",
+            "description": "Permission ID or Name.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "create_sales"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "message": { "type": "string", "example": "Permission berhasil dihapus dari role." },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer", "example": 2 },
+                        "name": { "type": "string", "example": "kasir" },
+                        "guard_name": { "type": "string", "example": "web" },
+                        "permissions": { "type": "array", "items": { "type": "object" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Role does not have the specified permission."
+          },
+          "401": {
+            "description": "Unauthenticated."
+          },
+          "403": {
+            "description": "Forbidden - Admin role required."
+          },
+          "404": {
+            "description": "Role or Permission not found."
+          }
+        }
+      }
+    },
     "/api/v1/inventory/movements": {
       "get": {
         "tags": [
