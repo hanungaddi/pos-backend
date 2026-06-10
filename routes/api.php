@@ -121,33 +121,15 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-        // Read Transactions (Supervisor+)
+        // Read Transactions (Supervisor+ & Cashier)
         Route::middleware(['permission:view_sales|create_sales'])->group(function () {
             Route::get('transactions', [TransactionController::class, 'index']); // Paginated history
-        });
-
-        // Cashier+ Operations (create_sales)
-        Route::middleware(['permission:create_sales'])->group(function () {
-            Route::get('transactions/on-hold', [TransactionController::class, 'listOnHold']);
-            Route::post('transactions', [TransactionController::class, 'store']);
-            Route::post('transactions/{transaction}/items', [TransactionController::class, 'addItem']);
-            Route::put('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'updateItem']);
-            Route::delete('transactions/{transaction}/items/{itemId}', [TransactionController::class, 'removeItem']);
-            Route::post('transactions/{transaction}/hold', [TransactionController::class, 'hold']);
-            Route::post('transactions/{transaction}/recall', [TransactionController::class, 'recall']);
-            Route::post('transactions/{transaction}/pay/cash', [TransactionController::class, 'payCash']);
-            Route::post('transactions/{transaction}/pay/card', [TransactionController::class, 'payCard']);
-            Route::post('transactions/{transaction}/pay/split', [TransactionController::class, 'paySplit']);
-        });
-
-        // Read Transaction Detail (Supervisor+) - Defined after on-hold to prevent route mismatch
-        Route::middleware(['permission:view_sales|create_sales'])->group(function () {
             Route::get('transactions/{transaction}', [TransactionController::class, 'show']);
         });
 
-        // Supervisor+ Operations (manage_sales)
-        Route::middleware(['permission:manage_sales'])->group(function () {
-            Route::post('transactions/{transaction}/void', [TransactionController::class, 'void']);
+        // Cashier Operations (create_sales)
+        Route::middleware(['permission:create_sales'])->group(function () {
+            Route::post('transactions', [TransactionController::class, 'store']); // Bulk Checkout
         });
 
         // Reports (view_reports)

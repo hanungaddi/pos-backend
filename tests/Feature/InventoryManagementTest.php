@@ -285,9 +285,11 @@ class InventoryManagementTest extends TestCase
 
     public function test_sales_checkout_records_sale_stock_movement(): void
     {
-        // Create a transaction as cashier
+        // Create and complete a transaction as cashier in one go
         $response = $this->actingAs($this->cashierUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 200000,
                 'items' => [
                     ['product_id' => $this->product->id, 'quantity' => 2],
                 ],
@@ -295,14 +297,6 @@ class InventoryManagementTest extends TestCase
 
         $response->assertCreated();
         $trxId = $response->json('data.id');
-
-        // Pay the transaction
-        $payResponse = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
-                'nominal_bayar' => 200000,
-            ]);
-
-        $payResponse->assertOk();
 
         // Stock decreased from 10 to 8
         $this->assertEquals(8, $this->product->fresh()->stok);

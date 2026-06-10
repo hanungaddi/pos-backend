@@ -161,21 +161,19 @@ class CashDrawerTest extends TestCase
 
         $transactionResponse = $this->actingAs($this->cashierUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 50000,
                 'items' => [
                     ['product_id' => $this->product->id, 'quantity' => 2],
                 ],
             ]);
 
-        $transactionId = $transactionResponse->json('data.id');
-
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$transactionId}/pay/cash", [
-                'nominal_bayar' => 50000,
-            ])
-            ->assertOk()
+        $transactionResponse->assertCreated()
             ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.metode_pembayaran', 'cash')
             ->assertJsonPath('data.cash_drawer_session_id', $sessionId);
+
+        $transactionId = $transactionResponse->json('data.id');
 
         $this->assertDatabaseHas('cash_drawer_sessions', [
             'id' => $sessionId,
@@ -193,59 +191,6 @@ class CashDrawerTest extends TestCase
 
         $this->assertDatabaseHas('activity_logs', [
             'action' => 'cash_drawer_cash_sale',
-            'model_type' => CashDrawerSession::class,
-            'model_id' => $sessionId,
-        ]);
-    }
-
-    public function test_void_records_cash_refund_when_original_drawer_is_open(): void
-    {
-        $openResponse = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/cash-drawer/open', [
-                'opening_balance' => 50000,
-            ]);
-
-        $sessionId = $openResponse->json('data.id');
-
-        $transactionResponse = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions', [
-                'items' => [
-                    ['product_id' => $this->product->id, 'quantity' => 1],
-                ],
-            ]);
-
-        $transactionId = $transactionResponse->json('data.id');
-
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$transactionId}/pay/cash", [
-                'nominal_bayar' => 10000,
-            ])
-            ->assertOk();
-
-        $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$transactionId}/void", [
-                'catatan_void' => 'Pembeli batal.',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'void');
-
-        $this->assertDatabaseHas('cash_drawer_sessions', [
-            'id' => $sessionId,
-            'expected_cash' => 50000,
-            'cash_sales_total' => 10000,
-            'cash_refunds_total' => 10000,
-        ]);
-
-        $this->assertDatabaseHas('cash_drawer_movements', [
-            'cash_drawer_session_id' => $sessionId,
-            'type' => 'cash_refund',
-            'amount' => 10000,
-            'reference_id' => $transactionId,
-            'reference_type' => 'transaction',
-        ]);
-
-        $this->assertDatabaseHas('activity_logs', [
-            'action' => 'cash_drawer_cash_refund',
             'model_type' => CashDrawerSession::class,
             'model_id' => $sessionId,
         ]);

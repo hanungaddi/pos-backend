@@ -2080,474 +2080,7 @@
                 ]
             }
         },
-        "/api/v1/transactions/on-hold": {
-            "get": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "List on-hold transactions",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of on-hold transactions."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/items": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Add item to transaction",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "product_id": {
-                                        "type": "integer"
-                                    },
-                                    "barcode": {
-                                        "type": "string"
-                                    },
-                                    "quantity": {
-                                        "type": "integer",
-                                        "minimum": 1
-                                    }
-                                },
-                                "required": [
-                                    "quantity"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Item added."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/items/{itemId}": {
-            "put": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Update item quantity",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "itemId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "quantity": {
-                                        "type": "integer",
-                                        "minimum": 1
-                                    }
-                                },
-                                "required": [
-                                    "quantity"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Item updated."
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Remove item from transaction",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "itemId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Item removed."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/hold": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Hold transaction",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Transaction put on hold."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/recall": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Recall transaction",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Transaction recalled to draft."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/pay/cash": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Pay transaction with cash",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "nominal_bayar": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "diskon": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "pajak": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    }
-                                },
-                                "required": [
-                                    "nominal_bayar"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Transaction completed."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/pay/card": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Pay transaction with card",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "jenis_kartu": {
-                                        "type": "string",
-                                        "enum": [
-                                            "debit",
-                                            "kredit"
-                                        ]
-                                    },
-                                    "nomor_kartu_akhir": {
-                                        "type": "string",
-                                        "maxLength": 4,
-                                        "minLength": 4
-                                    },
-                                    "referensi_edc": {
-                                        "type": "string"
-                                    },
-                                    "diskon": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "pajak": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    }
-                                },
-                                "required": [
-                                    "jenis_kartu",
-                                    "nomor_kartu_akhir",
-                                    "referensi_edc"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Transaction completed."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/pay/split": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Pay transaction with split cash and card",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "cash_amount": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "card_amount": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "nominal_bayar": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "jenis_kartu": {
-                                        "type": "string",
-                                        "enum": [
-                                            "debit",
-                                            "kredit"
-                                        ]
-                                    },
-                                    "nomor_kartu_akhir": {
-                                        "type": "string",
-                                        "maxLength": 4,
-                                        "minLength": 4
-                                    },
-                                    "referensi_edc": {
-                                        "type": "string"
-                                    },
-                                    "diskon": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "pajak": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    }
-                                },
-                                "required": [
-                                    "cash_amount",
-                                    "card_amount",
-                                    "nominal_bayar",
-                                    "jenis_kartu",
-                                    "nomor_kartu_akhir",
-                                    "referensi_edc"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Transaction completed."
-                    }
-                }
-            }
-        },
-        "/api/v1/transactions/{transaction}/void": {
-            "post": {
-                "tags": [
-                    "Transactions"
-                ],
-                "summary": "Void transaction",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "transaction",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "catatan_void": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "catatan_void"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Transaction voided."
-                    }
-                }
-            }
-        },
+
         "/api/v1/reports/summary": {
             "get": {
                 "tags": [
@@ -5046,45 +4579,197 @@
             "SaleCreate": {
                 "type": "object",
                 "required": [
-                    "paid",
+                    "metode_pembayaran",
                     "items"
                 ],
                 "properties": {
-                    "customer_name": {
+                    "nomor_transaksi": {
                         "type": "string",
-                        "maxLength": 255,
-                        "nullable": true,
-                        "example": "Budi"
+                        "example": "TRX-20260610-ABCDE"
                     },
-                    "cashier_name": {
+                    "is_offline": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "offline_id": {
                         "type": "string",
-                        "maxLength": 255,
-                        "nullable": true,
-                        "example": "Kasir 1"
+                        "format": "uuid",
+                        "example": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
                     },
-                    "payment_method": {
+                    "created_at": {
                         "type": "string",
-                        "maxLength": 50,
-                        "nullable": true,
-                        "default": "cash",
-                        "example": "cash"
+                        "format": "date-time"
                     },
-                    "discount": {
+                    "diskon": {
                         "type": "integer",
                         "minimum": 0,
                         "default": 0,
                         "example": 1000
                     },
-                    "tax": {
+                    "pajak": {
                         "type": "integer",
                         "minimum": 0,
                         "default": 0,
                         "example": 500
                     },
-                    "paid": {
+                    "metode_pembayaran": {
+                        "type": "string",
+                        "enum": [
+                            "cash",
+                            "card",
+                            "split"
+                        ],
+                        "example": "cash"
+                    },
+                    "cash_received": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "example": 50000
+                    },
+                    "nominal_bayar": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "example": 50000
+                    },
+                    "jenis_kartu": {
+                        "type": "string",
+                        "enum": [
+                            "debit",
+                            "kredit",
+                            "credit"
+                        ],
+                        "example": "debit"
+                    },
+                    "nomor_kartu_akhir": {
+                        "type": "string",
+                        "example": "1234"
+                    },
+                    "referensi_edc": {
+                        "type": "string",
+                        "example": "EDC-998877"
+                    },
+                    "cash_amount": {
                         "type": "integer",
                         "minimum": 0,
                         "example": 20000
+                    },
+                    "card_amount": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "example": 30000
+                    },
+                    "cash_details": {
+                        "type": "object",
+                        "properties": {
+                            "cash_received": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 50000
+                            },
+                            "nominal_bayar": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 50000
+                            }
+                        }
+                    },
+                    "card_details": {
+                        "type": "object",
+                        "properties": {
+                            "jenis_kartu": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "card_type": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "nomor_kartu_akhir": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "last_four": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "referensi_edc": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            },
+                            "reference_number": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            }
+                        }
+                    },
+                    "split_details": {
+                        "type": "object",
+                        "properties": {
+                            "cash_amount": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 20000
+                            },
+                            "card_amount": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 30000
+                            },
+                            "cash_received": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 20000
+                            },
+                            "nominal_bayar": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 20000
+                            },
+                            "jenis_kartu": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "card_type": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "nomor_kartu_akhir": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "last_four": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "referensi_edc": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            },
+                            "reference_number": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            }
+                        }
                     },
                     "items": {
                         "type": "array",
@@ -5098,13 +4783,16 @@
             "SaleCreateItem": {
                 "type": "object",
                 "required": [
-                    "product_id",
                     "quantity"
                 ],
                 "properties": {
                     "product_id": {
                         "type": "integer",
                         "example": 1
+                    },
+                    "barcode": {
+                        "type": "string",
+                        "example": "8990001002"
                     },
                     "quantity": {
                         "type": "integer",

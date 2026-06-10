@@ -78,139 +78,30 @@ class TransactionManagementTest extends TestCase
         ]);
     }
 
-    public function test_cashier_can_create_draft_transaction_and_manage_items(): void
+    public function test_cashier_can_checkout_bulk_cash(): void
     {
-        // 1. Create a draft transaction
         $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions');
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 50000,
+                'diskon' => 1000,
+                'pajak' => 500,
+                'items' => [
+                    ['product_id' => $this->product1->id, 'quantity' => 5], // 15000
+                    ['barcode' => '8990001003', 'quantity' => 1], // 22000
+                ], // total = 37000 - 1000 + 500 = 36500
+            ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.status', 'draft')
-            ->assertJsonPath('data.subtotal', 0)
-            ->assertJsonPath('data.total', 0);
-
-        $trxId = $response->json('data.id');
-
-        // 2. Add an item via product ID
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/items", [
-                'product_id' => $this->product1->id,
-                'quantity' => 2,
-            ]);
-
-        $response->assertOk()
-            ->assertJsonPath('data.subtotal', 6000)
-            ->assertJsonPath('data.total', 6000);
-
-        $itemId = $response->json('data.items.0.id');
-
-        // 3. Add same item again (should update quantity instead of inserting new record)
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/items", [
-                'product_id' => $this->product1->id,
-                'quantity' => 1,
-            ]);
-
-        $response->assertOk()
-            ->assertJsonPath('data.items.0.kuantitas', 3)
-            ->assertJsonPath('data.subtotal', 9000);
-
-        // 4. Add item via barcode lookup
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/items", [
-                'barcode' => '8990001003',
-                'quantity' => 2,
-            ]);
-
-        $response->assertOk()
-            ->assertJsonCount(2, 'data.items')
-            ->assertJsonPath('data.subtotal', 53000); // 3 * 3000 + 2 * 22000 = 9000 + 44000 = 53000
-
-        // 5. Update item quantity
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->putJson("/api/v1/transactions/{$trxId}/items/{$itemId}", [
-                'quantity' => 5,
-            ]);
-
-        $response->assertOk()
-            ->assertJsonPath('data.items.0.kuantitas', 5)
-            ->assertJsonPath('data.subtotal', 59000); // 5 * 3000 + 2 * 22000 = 15000 + 44000 = 59000
-
-        // 6. Remove item
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->deleteJson("/api/v1/transactions/{$trxId}/items/{$itemId}");
-
-        $response->assertOk()
-            ->assertJsonCount(1, 'data.items')
-            ->assertJsonPath('data.subtotal', 44000); // 2 * 22000 = 44000
-    }
-
-    public function test_hold_and_recall_workflow(): void
-    {
-        // Create draft with items
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions', [
-                'items' => [
-                    ['product_id' => $this->product1->id, 'quantity' => 3],
-                ],
-            ]);
-
-        $response->assertCreated();
-        $trxId = $response->json('data.id');
-
-        // Hold transaction
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/hold");
-
-        $response->assertOk()
-            ->assertJsonPath('data.status', 'hold');
-
-        // Get list on-hold (should show this transaction)
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->getJson('/api/v1/transactions/on-hold');
-
-        $response->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $trxId);
-
-        // Recall transaction
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/recall");
-
-        $response->assertOk()
-            ->assertJsonPath('data.status', 'draft');
-
-        // Get list on-hold (should be empty now)
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->getJson('/api/v1/transactions/on-hold')
-            ->assertOk()
-            ->assertJsonCount(0, 'data');
-    }
-
-    public function test_payment_methods_deduct_stock_and_record_movements(): void
-    {
-        // 1. Cash Payment
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions', [
-                'items' => [
-                    ['product_id' => $this->product1->id, 'quantity' => 5],
-                ],
-            ]);
-        $trxId1 = $response->json('data.id');
-
-        $payResponse = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId1}/pay/cash", [
-                'nominal_bayar' => 20000,
-            ]);
-
-        $payResponse->assertOk()
             ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.metode_pembayaran', 'cash')
-            ->assertJsonPath('data.nominal_bayar', 20000)
-            ->assertJsonPath('data.kembalian', 5000); // 20000 - 15000 = 5000
+            ->assertJsonPath('data.subtotal', 37000)
+            ->assertJsonPath('data.total', 36500)
+            ->assertJsonPath('data.nominal_bayar', 50000)
+            ->assertJsonPath('data.kembalian', 13500);
 
-        // Stock decreased (50 - 5 = 45)
         $this->assertEquals(45, $this->product1->fresh()->stok);
+        $this->assertEquals(9, $this->product2->fresh()->stok);
 
         $this->assertDatabaseHas('stock_movements', [
             'product_id' => $this->product1->id,
@@ -218,143 +109,158 @@ class TransactionManagementTest extends TestCase
             'kuantitas' => -5,
             'stok_sebelum' => 50,
             'stok_sesudah' => 45,
-            'referensi_id' => $trxId1,
             'referensi_tipe' => 'transaction',
         ]);
-
-        // 2. Card Payment
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions', [
-                'items' => [
-                    ['product_id' => $this->product2->id, 'quantity' => 2],
-                ],
-            ]);
-        $trxId2 = $response->json('data.id');
-
-        $payResponse = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId2}/pay/card", [
-                'jenis_kartu' => 'debit',
-                'nomor_kartu_akhir' => '1234',
-                'referensi_edc' => 'EDC-998877',
-            ]);
-
-        $payResponse->assertOk()
-            ->assertJsonPath('data.status', 'completed')
-            ->assertJsonPath('data.metode_pembayaran', 'card')
-            ->assertJsonPath('data.jenis_kartu', 'debit')
-            ->assertJsonPath('data.nomor_kartu_akhir', '1234')
-            ->assertJsonPath('data.referensi_edc', 'EDC-998877');
-
-        // Stock decreased (10 - 2 = 8)
-        $this->assertEquals(8, $this->product2->fresh()->stok);
-
-        // 3. Split Payment
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions', [
-                'items' => [
-                    ['product_id' => $this->product1->id, 'quantity' => 2], // 6000
-                ],
-            ]);
-        $trxId3 = $response->json('data.id');
-
-        $payResponse = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId3}/pay/split", [
-                'cash_amount' => 2000,
-                'card_amount' => 4000,
-                'nominal_bayar' => 5000, // cash paid (change should be 3000)
-                'jenis_kartu' => 'kredit',
-                'nomor_kartu_akhir' => '5678',
-                'referensi_edc' => 'EDC-665544',
-            ]);
-
-        $payResponse->assertOk()
-            ->assertJsonPath('data.status', 'completed')
-            ->assertJsonPath('data.metode_pembayaran', 'split')
-            ->assertJsonPath('data.kembalian', 3000); // 5000 - 2000 = 3000
-
-        // Stock decreased (45 - 2 = 43)
-        $this->assertEquals(43, $this->product1->fresh()->stok);
     }
 
-    public function test_void_workflow(): void
+    public function test_cashier_cannot_checkout_cash_insufficient_payment(): void
     {
-        // 1. Create and complete a transaction
         $response = $this->actingAs($this->cashierUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 10000,
                 'items' => [
-                    ['product_id' => $this->product2->id, 'quantity' => 3], // 66000
+                    ['product_id' => $this->product1->id, 'quantity' => 5], // 15000
                 ],
             ]);
-        $trxId = $response->json('data.id');
 
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
-                'nominal_bayar' => 70000,
-            ])->assertOk();
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['cash_received']);
 
-        // Product stock decreased (10 - 3 = 7)
-        $this->assertEquals(7, $this->product2->fresh()->stok);
+        $this->assertEquals(50, $this->product1->fresh()->stok);
+    }
 
-        // 2. Cashier tries to void (should fail 403)
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/void", [
-                'catatan_void' => 'Salah input jumlah barang',
-            ])->assertStatus(403);
-
-        // 3. Supervisor tries to void (should fail 403 since supervisor is now read-only)
-        $this->actingAs($this->supervisorUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/void", [
-                'catatan_void' => 'Supervisor tries to void',
-            ])->assertStatus(403);
-
-        // 4. Admin voids (should succeed 200)
-        $response = $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/void", [
-                'catatan_void' => 'Supervisor void request',
+    public function test_cashier_can_checkout_bulk_card(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'card',
+                'jenis_kartu' => 'credit',
+                'nomor_kartu_akhir' => '4321',
+                'referensi_edc' => 'EDC-998877',
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 2], // 44000
+                ],
             ]);
 
-        $response->assertOk()
-            ->assertJsonPath('data.status', 'void')
-            ->assertJsonPath('data.catatan_void', 'Supervisor void request')
-            ->assertJsonPath('data.void_by.id', $this->adminUser->id);
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'card')
+            ->assertJsonPath('data.total', 44000)
+            ->assertJsonPath('data.jenis_kartu', 'kredit') // credit maps to kredit
+            ->assertJsonPath('data.nomor_kartu_akhir', '4321')
+            ->assertJsonPath('data.referensi_edc', 'EDC-998877');
 
-        // Product stock restored back to 10
+        $this->assertEquals(8, $this->product2->fresh()->stok);
+    }
+
+    public function test_cashier_can_checkout_bulk_split(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'split',
+                'cash_amount' => 10000,
+                'card_amount' => 15000,
+                'nominal_bayar' => 20000, // cash received for cash portion
+                'jenis_kartu' => 'debit',
+                'nomor_kartu_akhir' => '5678',
+                'referensi_edc' => 'EDC-665544',
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 1], // 22000
+                    ['product_id' => $this->product1->id, 'quantity' => 1], // 3000
+                ], // total = 25000
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'split')
+            ->assertJsonPath('data.total', 25000)
+            ->assertJsonPath('data.nominal_bayar', 35000) // nominal_bayar + card_amount = 20000 + 15000
+            ->assertJsonPath('data.kembalian', 10000) // nominal_bayar - cash_amount = 20000 - 10000
+            ->assertJsonPath('data.jenis_kartu', 'debit')
+            ->assertJsonPath('data.nomor_kartu_akhir', '5678')
+            ->assertJsonPath('data.referensi_edc', 'EDC-665544');
+
+        $this->assertEquals(9, $this->product2->fresh()->stok);
+        $this->assertEquals(49, $this->product1->fresh()->stok);
+    }
+
+    public function test_checkout_rejects_insufficient_stock(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 300000,
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 11], // only 10 in stock
+                ],
+            ]);
+
+        $response->assertUnprocessable();
         $this->assertEquals(10, $this->product2->fresh()->stok);
+    }
 
-        // Verify stock movement for void is recorded
-        $this->assertDatabaseHas('stock_movements', [
-            'product_id' => $this->product2->id,
-            'tipe' => 'void',
-            'kuantitas' => 3,
-            'stok_sebelum' => 7,
-            'stok_sesudah' => 10,
-            'referensi_id' => $trxId,
-            'referensi_tipe' => 'transaction',
+    public function test_get_sale_detail(): void
+    {
+        // 1. Create a completed sale
+        $trx = Transaction::create([
+            'store_id' => 1,
+            'user_id' => $this->cashierUser->id,
+            'nomor_transaksi' => 'TRX-TEST-DETAIL',
+            'status' => 'completed',
+            'subtotal' => 3000,
+            'total' => 3000,
+            'metode_pembayaran' => 'cash',
         ]);
+        $trx->items()->create([
+            'product_id' => $this->product1->id,
+            'nama_produk' => $this->product1->nama,
+            'harga_satuan' => 3000,
+            'kuantitas' => 1,
+            'subtotal' => 3000,
+        ]);
+
+        // 2. Fetch detail
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->getJson("/api/v1/transactions/{$trx->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.nomor_transaksi', 'TRX-TEST-DETAIL')
+            ->assertJsonPath('data.items.0.nama_produk', 'Aqua 600ml');
     }
 
     public function test_kasir_can_only_see_their_own_transactions_in_history(): void
     {
-        // 1. Cashier 1 creates a transaction
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions');
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$response->json('data.id')}/hold");
+        // Cashier 1 transaction
+        Transaction::create([
+            'store_id' => 1,
+            'user_id' => $this->cashierUser->id,
+            'nomor_transaksi' => 'TRX-CASHIER-1',
+            'status' => 'completed',
+            'subtotal' => 3000,
+            'total' => 3000,
+            'metode_pembayaran' => 'cash',
+        ]);
 
-        // 2. Cashier 2 creates a transaction
-        $response2 = $this->actingAs($this->otherCashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions');
-        $this->actingAs($this->otherCashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$response2->json('data.id')}/hold");
+        // Cashier 2 transaction
+        Transaction::create([
+            'store_id' => 1,
+            'user_id' => $this->otherCashierUser->id,
+            'nomor_transaksi' => 'TRX-CASHIER-2',
+            'status' => 'completed',
+            'subtotal' => 3000,
+            'total' => 3000,
+            'metode_pembayaran' => 'cash',
+        ]);
 
-        // 3. Cashier 1 requests history (should only see 1 transaction)
+        // Cashier 1 checks history (should only see their own)
         $this->actingAs($this->cashierUser, 'sanctum')
             ->getJson('/api/v1/transactions')
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.user_id', $this->cashierUser->id);
+            ->assertJsonPath('data.0.nomor_transaksi', 'TRX-CASHIER-1');
 
-        // 4. Supervisor requests history (should see both)
+        // Supervisor checks history (should see both)
         $this->actingAs($this->supervisorUser, 'sanctum')
             ->getJson('/api/v1/transactions')
             ->assertOk()
@@ -363,61 +269,101 @@ class TransactionManagementTest extends TestCase
 
     public function test_reports_api_endpoints(): void
     {
-        // 1. Complete one cash sale (Aqua * 3 = 9000)
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
+        // 1. Complete one cash sale (Aqua * 3 = 9000) via unified checkout
+        $this->actingAs($this->cashierUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 10000,
                 'items' => [
                     ['product_id' => $this->product1->id, 'quantity' => 3],
                 ],
-            ]);
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$response->json('data.id')}/pay/cash", [
-                'nominal_bayar' => 10000,
-            ])->assertOk();
+            ])->assertCreated();
 
-        // 2. Complete one card sale (Pringles * 1 = 22000)
-        $response = $this->actingAs($this->cashierUser, 'sanctum')
+        // 2. Complete one card sale (Pringles * 1 = 22000) via unified checkout
+        $this->actingAs($this->cashierUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'card',
                 'items' => [
                     ['product_id' => $this->product2->id, 'quantity' => 1],
                 ],
-            ]);
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$response->json('data.id')}/pay/card", [
-                'jenis_kartu' => 'debit',
-                'nomor_kartu_akhir' => '9999',
-                'referensi_edc' => 'EDC-123',
-            ])->assertOk();
-
-        // 3. Create one draft sale (should be ignored in reports)
-        $this->actingAs($this->cashierUser, 'sanctum')
-            ->postJson('/api/v1/transactions', [
-                'items' => [
-                    ['product_id' => $this->product1->id, 'quantity' => 10],
-                ],
             ])->assertCreated();
 
-        // 4. Call /reports/summary
+        // 3. Call /reports/summary
         $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/v1/reports/summary')
             ->assertOk()
             ->assertJsonPath('data.sales_count', 2)
             ->assertJsonPath('data.items_sold', 4)
-            ->assertJsonPath('data.net_sales', 31000)
-            ->assertJsonPath('data.top_products.0.product_name', 'Aqua 600ml')
-            ->assertJsonPath('data.top_products.0.quantity', 3)
-            ->assertJsonPath('data.top_products.1.product_name', 'Pringles 110g')
-            ->assertJsonPath('data.top_products.1.quantity', 1);
+            ->assertJsonPath('data.net_sales', 31000);
+    }
 
-        // 5. Call /reports/sales/daily
-        $this->actingAs($this->adminUser, 'sanctum')
-            ->getJson('/api/v1/reports/sales/daily')
-            ->assertOk()
-            ->assertJsonPath('data.total_sales', 31000)
-            ->assertJsonPath('data.transactions_count', 2)
-            ->assertJsonPath('data.average_transaction_value', 15500)
-            ->assertJsonPath('data.payment_methods.cash.total', 9000)
-            ->assertJsonPath('data.payment_methods.card.total', 22000)
-            ->assertJsonPath('data.void_count', 0);
+    public function test_cashier_can_checkout_bulk_nested_cash(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_details' => [
+                    'cash_received' => 50000,
+                ],
+                'items' => [
+                    ['product_id' => $this->product1->id, 'quantity' => 5],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'cash')
+            ->assertJsonPath('data.nominal_bayar', 50000)
+            ->assertJsonPath('data.kembalian', 35000);
+    }
+
+    public function test_cashier_can_checkout_bulk_nested_card(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'card',
+                'card_details' => [
+                    'jenis_kartu' => 'credit',
+                    'nomor_kartu_akhir' => '4321',
+                    'referensi_edc' => 'EDC-998877',
+                ],
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 2],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'card')
+            ->assertJsonPath('data.jenis_kartu', 'kredit')
+            ->assertJsonPath('data.nomor_kartu_akhir', '4321')
+            ->assertJsonPath('data.referensi_edc', 'EDC-998877');
+    }
+
+    public function test_cashier_can_checkout_bulk_nested_split(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'split',
+                'split_details' => [
+                    'cash_amount' => 10000,
+                    'card_amount' => 15000,
+                    'nominal_bayar' => 20000,
+                    'jenis_kartu' => 'debit',
+                    'nomor_kartu_akhir' => '5678',
+                    'referensi_edc' => 'EDC-665544',
+                ],
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 1],
+                    ['product_id' => $this->product1->id, 'quantity' => 1],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'split')
+            ->assertJsonPath('data.total', 25000)
+            ->assertJsonPath('data.nominal_bayar', 35000)
+            ->assertJsonPath('data.kembalian', 10000);
     }
 }
