@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\V1\CashDrawerController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\RolePermissionController;
+use App\Http\Controllers\Api\V1\PurchaseOrderController;
+use App\Http\Controllers\Api\V1\ReceivingPaymentController;
+use App\Http\Controllers\Api\V1\PurchaseReturnController;
 
 // API Routes V1
 Route::prefix('v1')->group(function () {
@@ -67,6 +70,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['permission:view_products|manage_products'])->group(function () {
             Route::get('products', [ProductController::class, 'index']);
             Route::get('products/barcode/{barcode}', [ProductController::class, 'showByBarcode']);
+            Route::get('products/price-logs', [ProductController::class, 'allPriceLogs']);
+            Route::get('products/{id}/price-logs', [ProductController::class, 'itemPriceLogs']);
             Route::get('products/{product}', [ProductController::class, 'show']);
             Route::get('products/{id}/print-barcode', [ProductController::class, 'printBarcode']);
             Route::match(['get', 'post'], 'products/print-barcodes', [ProductController::class, 'printBarcodesBulk']);
@@ -191,6 +196,58 @@ Route::prefix('v1')->group(function () {
             Route::post('suppliers', [SupplierController::class, 'store']);
             Route::put('suppliers/{id}', [SupplierController::class, 'update']);
             Route::delete('suppliers/{id}', [SupplierController::class, 'destroy']);
+        });
+    });
+
+    // Purchase Menu (Pemesanan, Penerimaan, Pembayaran, Retur)
+    Route::middleware(['auth:sanctum'])->prefix('purchase')->group(function () {
+        // 1. Purchase Orders (Pemesanan)
+        Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('order', [PurchaseOrderController::class, 'index']);
+            Route::get('order/{id}', [PurchaseOrderController::class, 'show']);
+        });
+        Route::middleware(['permission:manage_purchase'])->group(function () {
+            Route::post('order', [PurchaseOrderController::class, 'store']);
+            Route::put('order/{id}', [PurchaseOrderController::class, 'update']);
+            Route::delete('order/{id}', [PurchaseOrderController::class, 'destroy']);
+            Route::post('order/{id}/finalize', [PurchaseOrderController::class, 'finalize']);
+            Route::post('order/{id}/cancel', [PurchaseOrderController::class, 'cancel']);
+        });
+
+        // 2. Receivings (Penerimaan)
+        Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('receiving', [StockReceivingController::class, 'index']);
+            Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
+        });
+        Route::middleware(['permission:manage_purchase'])->group(function () {
+            Route::post('receiving', [StockReceivingController::class, 'store']);
+            Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
+            Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
+            Route::patch('receiving/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
+            Route::post('receiving/compare-prices', [StockReceivingController::class, 'comparePrices']);
+        });
+
+        // 3. Payments (Pembayaran)
+        Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('payment', [ReceivingPaymentController::class, 'index']);
+            Route::get('payment/{id}', [ReceivingPaymentController::class, 'show']);
+        });
+        Route::middleware(['permission:manage_purchase'])->group(function () {
+            Route::post('payment', [ReceivingPaymentController::class, 'store']);
+            Route::put('payment/{id}', [ReceivingPaymentController::class, 'update']);
+            Route::delete('payment/{id}', [ReceivingPaymentController::class, 'destroy']);
+        });
+
+        // 4. Returns (Return)
+        Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('return', [PurchaseReturnController::class, 'index']);
+            Route::get('return/{id}', [PurchaseReturnController::class, 'show']);
+        });
+        Route::middleware(['permission:manage_purchase'])->group(function () {
+            Route::post('return', [PurchaseReturnController::class, 'store']);
+            Route::put('return/{id}', [PurchaseReturnController::class, 'update']);
+            Route::delete('return/{id}', [PurchaseReturnController::class, 'destroy']);
+            Route::post('return/{id}/finalize', [PurchaseReturnController::class, 'finalize']);
         });
     });
 });

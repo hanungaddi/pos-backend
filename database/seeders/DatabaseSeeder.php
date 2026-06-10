@@ -22,6 +22,18 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
         ]);
 
+        \App\Models\CashAccount::updateOrCreate(['id' => 1], [
+            'nama' => 'Kas Kasir',
+            'tipe' => 'register',
+            'saldo' => 0,
+        ]);
+
+        \App\Models\CashAccount::updateOrCreate(['id' => 2], [
+            'nama' => 'Kas Utama',
+            'tipe' => 'cash',
+            'saldo' => 0,
+        ]);
+
         collect([
             ['nama' => 'Kopi Sachet', 'merek' => 'Kapal Api', 'barcode' => '8991234560012', 'stok' => 40, 'harga' => 1500],
             ['nama' => 'Mi Instan Goreng', 'merek' => 'Indomie', 'barcode' => '8991234560029', 'stok' => 30, 'harga' => 3500],

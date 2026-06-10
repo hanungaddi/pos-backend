@@ -13,6 +13,7 @@ class StockReceiving extends Model
 
     protected $fillable = [
         'store_id',
+        'purchase_order_id',
         'nomor_penerimaan',
         'supplier',
         'supplier_id',
@@ -23,6 +24,17 @@ class StockReceiving extends Model
         'nilai_faktur',
         'status_pembayaran',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'store_id' => 'integer',
+            'purchase_order_id' => 'integer',
+            'supplier_id' => 'integer',
+            'user_id' => 'integer',
+            'nilai_faktur' => 'integer',
+        ];
+    }
 
     public function items(): HasMany
     {
@@ -37,5 +49,17 @@ class StockReceiving extends Model
     public function supplier_relationship(): BelongsTo
     {
         return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'referensi_id')
+            ->where('referensi_tipe', 'receiving')
+            ->where('tipe', 'supplier_payment');
     }
 }

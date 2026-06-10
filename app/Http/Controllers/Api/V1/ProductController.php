@@ -317,4 +317,56 @@ class ProductController extends Controller
 
         return view('barcode-print', compact('labels'));
     }
+
+    public function allPriceLogs(Request $request): JsonResponse
+    {
+        $query = \App\Models\ProductPriceLog::query()->with(['product', 'user']);
+
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->integer('product_id'));
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->integer('user_id'));
+        }
+
+        if ($request->filled('sumber')) {
+            $query->where('sumber', $request->string('sumber'));
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->string('start_date'));
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->string('end_date'));
+        }
+
+        $search = $request->input('search') ?? $request->input('q');
+        if (!empty($search)) {
+            $keyword = (string) $search;
+            $query->whereHas('product', function ($q) use ($keyword) {
+                $q->where('nama', 'like', "%{$keyword}%");
+            });
+        }
+
+        $logs = $query->orderBy('created_at', 'desc')->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($logs);
+    }
+
+    public function itemPriceLogs(int $id, Request $request): JsonResponse
+    {
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json(['message' => 'Produk tidak ditemukan.'], 404);
+        }
+
+        $logs = \App\Models\ProductPriceLog::where('product_id', $id)
+            ->with(['user'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->integer('per_page', 15));
+
+        return $this->responsePaginated($logs);
+    }
 }
