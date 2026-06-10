@@ -142,7 +142,7 @@ class SupplierAndActivityLogTest extends TestCase
 
         // 1. Create a draft receiving
         $response = $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving', [
+            ->postJson('/api/v1/purchase/receiving', [
                 'supplier_id' => $supplier->id,
                 'supplier' => $supplier->nama,
                 'nomor_faktur' => 'INV-DRAFT-001',
@@ -177,7 +177,7 @@ class SupplierAndActivityLogTest extends TestCase
 
         // 2. Finalize receiving draft
         $response = $this->actingAs($this->managerUser, 'sanctum')
-            ->putJson("/api/v1/inventory/receiving/{$recId}", [
+            ->putJson("/api/v1/purchase/receiving/{$recId}", [
                 'supplier_id' => $supplier->id,
                 'supplier' => $supplier->nama,
                 'nomor_faktur' => 'INV-DRAFT-001',
@@ -231,7 +231,7 @@ class SupplierAndActivityLogTest extends TestCase
 
         // Delete draft receiving
         $response = $this->actingAs($this->managerUser, 'sanctum')
-            ->deleteJson("/api/v1/inventory/receiving/{$receiving->id}");
+            ->deleteJson("/api/v1/purchase/receiving/{$receiving->id}");
 
         $response->assertStatus(200);
 

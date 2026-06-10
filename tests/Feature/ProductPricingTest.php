@@ -80,7 +80,7 @@ class ProductPricingTest extends TestCase
     public function test_compare_prices_endpoint(): void
     {
         $response = $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving/compare-prices', [
+            ->postJson('/api/v1/purchase/receiving/compare-prices', [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -104,7 +104,7 @@ class ProductPricingTest extends TestCase
     {
         // Case 1: Update selling price is FALSE (margin compresses)
         $response = $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving', [
+            ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
                 'status' => 'completed',
                 'items' => [
@@ -129,7 +129,7 @@ class ProductPricingTest extends TestCase
         $this->product->update(['margin' => 20.00, 'harga_beli' => 10000, 'harga_jual' => 12000]);
 
         $response2 = $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving', [
+            ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
                 'status' => 'completed',
                 'items' => [
@@ -150,7 +150,7 @@ class ProductPricingTest extends TestCase
 
         // Case 3: Update selling price is TRUE with a custom new selling price
         $response3 = $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving', [
+            ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
                 'status' => 'completed',
                 'items' => [

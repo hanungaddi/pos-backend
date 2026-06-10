@@ -103,7 +103,7 @@ class InventoryManagementTest extends TestCase
     public function test_manager_and_above_can_create_stock_receiving(): void
     {
         $response = $this->actingAs($this->managerUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving', [
+            ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Distribusi Sembako',
                 'nomor_faktur' => 'FAK-12345',
                 'catatan' => 'Penerimaan rutin bulanan',
@@ -135,7 +135,7 @@ class InventoryManagementTest extends TestCase
 
         // Supervisor CANNOT create receiving (403)
         $this->actingAs($this->supervisorUser, 'sanctum')
-            ->postJson('/api/v1/inventory/receiving', [
+            ->postJson('/api/v1/purchase/receiving', [
                 'items' => [
                     ['product_id' => $this->product->id, 'kuantitas' => 5, 'harga_beli' => 50000]
                 ]
@@ -163,13 +163,13 @@ class InventoryManagementTest extends TestCase
 
         // 3. Supervisor can view list of receiving
         $response = $this->actingAs($this->supervisorUser, 'sanctum')
-            ->getJson('/api/v1/inventory/receiving');
+            ->getJson('/api/v1/purchase/receiving');
         $response->assertStatus(200)
             ->assertJsonFragment(['nomor_faktur' => 'INV-001']);
 
         // 4. Supervisor can view detail of receiving
         $response = $this->actingAs($this->supervisorUser, 'sanctum')
-            ->getJson("/api/v1/inventory/receiving/{$receiving->id}");
+            ->getJson("/api/v1/purchase/receiving/{$receiving->id}");
         $response->assertStatus(200);
 
         // 5. Supervisor can view list of opname
@@ -185,7 +185,7 @@ class InventoryManagementTest extends TestCase
 
         // 7. Supervisor CANNOT update receiving
         $this->actingAs($this->supervisorUser, 'sanctum')
-            ->putJson("/api/v1/inventory/receiving/{$receiving->id}", [
+            ->putJson("/api/v1/purchase/receiving/{$receiving->id}", [
                 'supplier' => 'PT Changed'
             ])
             ->assertStatus(403);

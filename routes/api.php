@@ -163,20 +163,12 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['permission:view_inventory|manage_inventory'])->group(function () {
             Route::get('movements', [StockMovementController::class, 'index']);
             Route::get('movements/{productId}', [StockMovementController::class, 'showByProduct']);
-            Route::get('receiving', [StockReceivingController::class, 'index']);
-            Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
             Route::get('opname', [StockOpnameController::class, 'index']);
             Route::get('opname/{id}', [StockOpnameController::class, 'show']);
         });
 
         // Operations (Manager+)
         Route::middleware(['permission:manage_inventory'])->group(function () {
-            Route::post('receiving/compare-prices', [StockReceivingController::class, 'comparePrices']);
-            Route::post('receiving', [StockReceivingController::class, 'store']);
-            Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
-            Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
-            Route::patch('receiving/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
-
             Route::post('adjustment', [StockAdjustmentController::class, 'store']);
 
             Route::post('opname', [StockOpnameController::class, 'store']);

@@ -41,8 +41,8 @@
             "description": "System and user activity audit logs"
         },
         {
-            "name": "Receiving",
-            "description": "Stock receiving and supplier shipment tracking"
+            "name": "Purchase Receiving",
+            "description": "Stock receiving and purchase invoice tracking"
         },
         {
             "name": "Opname",
@@ -1002,302 +1002,6 @@
                     },
                     "403": {
                         "description": "Forbidden"
-                    }
-                }
-            }
-        },
-        "/api/v1/inventory/receiving/compare-prices": {
-            "post": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "Compare received item prices",
-                "description": "Compares new buying prices with existing ones to alert managers of cost changes and calculate suggested selling prices based on set margins. Access is restricted to users with 'manage_inventory' permission.",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "required": [
-                                    "items"
-                                ],
-                                "properties": {
-                                    "items": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "required": [
-                                                "product_id",
-                                                "harga_beli"
-                                            ],
-                                            "properties": {
-                                                "product_id": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "harga_beli": {
-                                                    "type": "integer",
-                                                    "example": 11000
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "product_id": {
-                                                        "type": "integer",
-                                                        "example": 1
-                                                    },
-                                                    "nama": {
-                                                        "type": "string",
-                                                        "example": "Beras Pandan Wangi 5kg"
-                                                    },
-                                                    "harga_beli_lama": {
-                                                        "type": "integer",
-                                                        "example": 10000
-                                                    },
-                                                    "harga_beli_baru": {
-                                                        "type": "integer",
-                                                        "example": 11000
-                                                    },
-                                                    "harga_jual_lama": {
-                                                        "type": "integer",
-                                                        "example": 12000
-                                                    },
-                                                    "margin_lama": {
-                                                        "type": "number",
-                                                        "example": 20
-                                                    },
-                                                    "harga_jual_saran": {
-                                                        "type": "integer",
-                                                        "example": 13200
-                                                    },
-                                                    "selisih_harga_beli": {
-                                                        "type": "integer",
-                                                        "example": 1000
-                                                    },
-                                                    "perlu_alert": {
-                                                        "type": "boolean",
-                                                        "example": true
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
-                    "403": {
-                        "description": "Forbidden"
-                    }
-                }
-            }
-        },
-        "/api/v1/inventory/receiving": {
-            "get": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "List stock receivings",
-                "description": "Retrieves list of receivings. Access is restricted to users with 'manage_inventory' permission.",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "q",
-                        "in": "query",
-                        "description": "Search keyword for supplier, invoice number, or billing number.",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/StockReceiving"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
-                    "403": {
-                        "description": "Forbidden"
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "Create stock receiving",
-                "description": "Records a new incoming stock from a supplier and increments product stock levels. Access is restricted to users with 'manage_inventory' permission.",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/StockReceivingCreate"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string"
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/StockReceiving"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
-                    "403": {
-                        "description": "Forbidden"
-                    },
-                    "422": {
-                        "description": "Validation error"
-                    }
-                }
-            }
-        },
-        "/api/v1/inventory/receiving/{id}": {
-            "get": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "Show receiving detail",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Receiving details."
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "Update draft receiving / Finalize",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Receiving updated."
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "Delete draft receiving",
-                "description": "Deletes a draft stock receiving. Completed receiving cannot be deleted. Restricted to manage_inventory permission.",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Draft receiving deleted."
                     }
                 }
             }
@@ -3219,57 +2923,6 @@
                 "description": "Delete an existing supplier. Access is restricted to users with 'manage_suppliers' permission."
             }
         },
-        "/api/v1/inventory/receiving/{id}/payment-status": {
-            "patch": {
-                "tags": [
-                    "Receiving"
-                ],
-                "summary": "Update receiving invoice payment status",
-                "description": "Updates payment status of receiving invoice. Restricted to manage_inventory permission.",
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "status_pembayaran": {
-                                        "type": "string",
-                                        "enum": [
-                                            "pending",
-                                            "paid"
-                                        ]
-                                    }
-                                },
-                                "required": [
-                                    "status_pembayaran"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Payment status updated."
-                    }
-                }
-            }
-        },
         "/api/v1/categories": {
             "get": {
                 "tags": [
@@ -4209,7 +3862,7 @@
         "/api/v1/purchase/receiving": {
             "get": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "List stock receivings (flat prefix)",
                 "security": [
@@ -4251,7 +3904,7 @@
             },
             "post": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "Create stock receiving (flat prefix)",
                 "security": [
@@ -4282,7 +3935,7 @@
         "/api/v1/purchase/receiving/{id}": {
             "get": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "Show receiving detail (flat prefix)",
                 "security": [
@@ -4311,7 +3964,7 @@
             },
             "put": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "Update / finalize receiving (flat prefix)",
                 "security": [
@@ -4350,7 +4003,7 @@
             },
             "delete": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "Delete draft receiving (flat prefix)",
                 "security": [
@@ -4381,7 +4034,7 @@
         "/api/v1/purchase/receiving/{id}/payment-status": {
             "patch": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "Update receiving payment status manually (flat prefix)",
                 "security": [
@@ -4431,7 +4084,7 @@
         "/api/v1/purchase/receiving/compare-prices": {
             "post": {
                 "tags": [
-                    "Receiving"
+                    "Purchase Receiving"
                 ],
                 "summary": "Compare received prices (flat prefix)",
                 "security": [
