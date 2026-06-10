@@ -4658,6 +4658,119 @@
                         "minimum": 0,
                         "example": 30000
                     },
+                    "cash_details": {
+                        "type": "object",
+                        "properties": {
+                            "cash_received": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 50000
+                            },
+                            "nominal_bayar": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 50000
+                            }
+                        }
+                    },
+                    "card_details": {
+                        "type": "object",
+                        "properties": {
+                            "jenis_kartu": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "card_type": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "nomor_kartu_akhir": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "last_four": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "referensi_edc": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            },
+                            "reference_number": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            }
+                        }
+                    },
+                    "split_details": {
+                        "type": "object",
+                        "properties": {
+                            "cash_amount": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 20000
+                            },
+                            "card_amount": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 30000
+                            },
+                            "cash_received": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 20000
+                            },
+                            "nominal_bayar": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "example": 20000
+                            },
+                            "jenis_kartu": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "card_type": {
+                                "type": "string",
+                                "enum": [
+                                    "debit",
+                                    "kredit",
+                                    "credit"
+                                ],
+                                "example": "debit"
+                            },
+                            "nomor_kartu_akhir": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "last_four": {
+                                "type": "string",
+                                "example": "1234"
+                            },
+                            "referensi_edc": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            },
+                            "reference_number": {
+                                "type": "string",
+                                "example": "EDC-998877"
+                            }
+                        }
+                    },
                     "items": {
                         "type": "array",
                         "minItems": 1,

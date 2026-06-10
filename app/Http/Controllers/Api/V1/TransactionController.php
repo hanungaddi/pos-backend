@@ -83,6 +83,9 @@ class TransactionController extends Controller
             // Cash payment validation
             'cash_received' => ['nullable', 'numeric', 'min:0'],
             'nominal_bayar' => ['nullable', 'numeric', 'min:0'],
+            'cash_details' => ['nullable', 'array'],
+            'cash_details.cash_received' => ['nullable', 'numeric', 'min:0'],
+            'cash_details.nominal_bayar' => ['nullable', 'numeric', 'min:0'],
             
             // Card payment validation
             'jenis_kartu' => ['nullable', 'string', 'in:debit,kredit,credit'],
@@ -91,10 +94,28 @@ class TransactionController extends Controller
             'last_four' => ['nullable', 'string', 'size:4'],
             'referensi_edc' => ['nullable', 'string', 'max:50'],
             'reference_number' => ['nullable', 'string', 'max:50'],
+            'card_details' => ['nullable', 'array'],
+            'card_details.jenis_kartu' => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'card_details.card_type' => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'card_details.nomor_kartu_akhir' => ['nullable', 'string', 'size:4'],
+            'card_details.last_four' => ['nullable', 'string', 'size:4'],
+            'card_details.referensi_edc' => ['nullable', 'string', 'max:50'],
+            'card_details.reference_number' => ['nullable', 'string', 'max:50'],
             
             // Split payment validation
             'cash_amount' => ['nullable', 'integer', 'min:0'],
             'card_amount' => ['nullable', 'integer', 'min:0'],
+            'split_details' => ['nullable', 'array'],
+            'split_details.cash_amount' => ['nullable', 'integer', 'min:0'],
+            'split_details.card_amount' => ['nullable', 'integer', 'min:0'],
+            'split_details.cash_received' => ['nullable', 'numeric', 'min:0'],
+            'split_details.nominal_bayar' => ['nullable', 'numeric', 'min:0'],
+            'split_details.jenis_kartu' => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'split_details.card_type' => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'split_details.nomor_kartu_akhir' => ['nullable', 'string', 'size:4'],
+            'split_details.last_four' => ['nullable', 'string', 'size:4'],
+            'split_details.referensi_edc' => ['nullable', 'string', 'max:50'],
+            'split_details.reference_number' => ['nullable', 'string', 'max:50'],
         ]);
 
         $updatedTransaction = DB::transaction(function () use ($validated, $request) {
@@ -157,7 +178,12 @@ class TransactionController extends Controller
             $paymentDetails = [];
 
             if ($metode === 'cash') {
-                $cashReceived = $validated['cash_received'] ?? $validated['nominal_bayar'] ?? null;
+                $cashReceived = $validated['cash_received'] 
+                    ?? $validated['nominal_bayar'] 
+                    ?? data_get($validated, 'cash_details.cash_received')
+                    ?? data_get($validated, 'cash_details.nominal_bayar')
+                    ?? null;
+
                 if ($cashReceived === null) {
                     throw ValidationException::withMessages([
                         'cash_received' => ['Nominal bayar wajib diisi.'],
@@ -184,9 +210,23 @@ class TransactionController extends Controller
                 $logAction = 'checkout_cash';
                 $logMessage = "Transaction #{$transaction->id} was paid using Cash.";
             } elseif ($metode === 'card') {
-                $jenisKartu = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
-                $nomorKartuAkhir = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
-                $referensiEdc = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
+                $jenisKartu = $validated['jenis_kartu'] 
+                    ?? $validated['card_type'] 
+                    ?? data_get($validated, 'card_details.jenis_kartu')
+                    ?? data_get($validated, 'card_details.card_type')
+                    ?? 'debit';
+
+                $nomorKartuAkhir = $validated['nomor_kartu_akhir'] 
+                    ?? $validated['last_four'] 
+                    ?? data_get($validated, 'card_details.nomor_kartu_akhir')
+                    ?? data_get($validated, 'card_details.last_four')
+                    ?? '0000';
+
+                $referensiEdc = $validated['referensi_edc'] 
+                    ?? $validated['reference_number'] 
+                    ?? data_get($validated, 'card_details.referensi_edc')
+                    ?? data_get($validated, 'card_details.reference_number')
+                    ?? ('EDC-' . now()->timestamp);
 
                 $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
 
@@ -205,8 +245,14 @@ class TransactionController extends Controller
                 $logAction = 'checkout_card';
                 $logMessage = "Transaction #{$transaction->id} was paid using Card.";
             } elseif ($metode === 'split') {
-                $cashAmount = $validated['cash_amount'] ?? null;
-                $cardAmount = $validated['card_amount'] ?? null;
+                $cashAmount = $validated['cash_amount'] 
+                    ?? data_get($validated, 'split_details.cash_amount') 
+                    ?? null;
+
+                $cardAmount = $validated['card_amount'] 
+                    ?? data_get($validated, 'split_details.card_amount') 
+                    ?? null;
+
                 if ($cashAmount === null || $cardAmount === null) {
                     throw ValidationException::withMessages([
                         'cash_amount' => ['Split payment requires both cash_amount and card_amount.'],
@@ -219,7 +265,14 @@ class TransactionController extends Controller
                     ]);
                 }
 
-                $nominalBayar = $validated['nominal_bayar'] ?? $validated['cash_received'] ?? null;
+                $nominalBayar = $validated['nominal_bayar'] 
+                    ?? $validated['cash_received'] 
+                    ?? data_get($validated, 'cash_details.cash_received')
+                    ?? data_get($validated, 'cash_details.nominal_bayar')
+                    ?? data_get($validated, 'split_details.cash_received')
+                    ?? data_get($validated, 'split_details.nominal_bayar')
+                    ?? null;
+
                 if ($nominalBayar === null) {
                     throw ValidationException::withMessages([
                         'nominal_bayar' => ['Nominal bayar tunai wajib diisi.'],
@@ -232,9 +285,30 @@ class TransactionController extends Controller
                     ]);
                 }
 
-                $jenisKartu = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
-                $nomorKartuAkhir = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
-                $referensiEdc = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
+                $jenisKartu = $validated['jenis_kartu'] 
+                    ?? $validated['card_type'] 
+                    ?? data_get($validated, 'card_details.jenis_kartu')
+                    ?? data_get($validated, 'card_details.card_type')
+                    ?? data_get($validated, 'split_details.jenis_kartu')
+                    ?? data_get($validated, 'split_details.card_type')
+                    ?? 'debit';
+
+                $nomorKartuAkhir = $validated['nomor_kartu_akhir'] 
+                    ?? $validated['last_four'] 
+                    ?? data_get($validated, 'card_details.nomor_kartu_akhir')
+                    ?? data_get($validated, 'card_details.last_four')
+                    ?? data_get($validated, 'split_details.nomor_kartu_akhir')
+                    ?? data_get($validated, 'split_details.last_four')
+                    ?? '0000';
+
+                $referensiEdc = $validated['referensi_edc'] 
+                    ?? $validated['reference_number'] 
+                    ?? data_get($validated, 'card_details.referensi_edc')
+                    ?? data_get($validated, 'card_details.reference_number')
+                    ?? data_get($validated, 'split_details.referensi_edc')
+                    ?? data_get($validated, 'split_details.reference_number')
+                    ?? ('EDC-' . now()->timestamp);
+
                 $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
 
                 $this->validateAndDeductStock($transaction, $request->user());

@@ -296,4 +296,74 @@ class TransactionManagementTest extends TestCase
             ->assertJsonPath('data.items_sold', 4)
             ->assertJsonPath('data.net_sales', 31000);
     }
+
+    public function test_cashier_can_checkout_bulk_nested_cash(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_details' => [
+                    'cash_received' => 50000,
+                ],
+                'items' => [
+                    ['product_id' => $this->product1->id, 'quantity' => 5],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'cash')
+            ->assertJsonPath('data.nominal_bayar', 50000)
+            ->assertJsonPath('data.kembalian', 35000);
+    }
+
+    public function test_cashier_can_checkout_bulk_nested_card(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'card',
+                'card_details' => [
+                    'jenis_kartu' => 'credit',
+                    'nomor_kartu_akhir' => '4321',
+                    'referensi_edc' => 'EDC-998877',
+                ],
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 2],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'card')
+            ->assertJsonPath('data.jenis_kartu', 'kredit')
+            ->assertJsonPath('data.nomor_kartu_akhir', '4321')
+            ->assertJsonPath('data.referensi_edc', 'EDC-998877');
+    }
+
+    public function test_cashier_can_checkout_bulk_nested_split(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'split',
+                'split_details' => [
+                    'cash_amount' => 10000,
+                    'card_amount' => 15000,
+                    'nominal_bayar' => 20000,
+                    'jenis_kartu' => 'debit',
+                    'nomor_kartu_akhir' => '5678',
+                    'referensi_edc' => 'EDC-665544',
+                ],
+                'items' => [
+                    ['product_id' => $this->product2->id, 'quantity' => 1],
+                    ['product_id' => $this->product1->id, 'quantity' => 1],
+                ],
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.metode_pembayaran', 'split')
+            ->assertJsonPath('data.total', 25000)
+            ->assertJsonPath('data.nominal_bayar', 35000)
+            ->assertJsonPath('data.kembalian', 10000);
+    }
 }
