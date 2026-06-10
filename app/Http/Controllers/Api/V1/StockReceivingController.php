@@ -67,6 +67,7 @@ class StockReceivingController extends Controller
 
             $receiving = StockReceiving::create([
                 'store_id' => $request->user()->store_id,
+                'purchase_order_id' => $validated['purchase_order_id'] ?? null,
                 'nomor_penerimaan' => $nomorPenerimaan,
                 'supplier_id' => $validated['supplier_id'] ?? null,
                 'supplier' => $validated['supplier'] ?? null,
@@ -99,6 +100,10 @@ class StockReceivingController extends Controller
                         // Process pricing updates
                         $product->harga_beli = $itemData['harga_beli'];
                         
+                        // Pass details to ProductObserver
+                        $product->price_log_sumber = 'receiving';
+                        $product->price_log_referensi_id = $receiving->id;
+
                         $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
                         if ($updateHargaJual) {
                             if (!empty($itemData['harga_jual_baru'])) {
@@ -114,6 +119,16 @@ class StockReceivingController extends Controller
 
                         $product->save();
 
+                        // Update PO item quantity received
+                        if ($receiving->purchase_order_id) {
+                            $poItem = \App\Models\PurchaseOrderItem::where('purchase_order_id', $receiving->purchase_order_id)
+                                ->where('product_id', $product->id)
+                                ->first();
+                            if ($poItem) {
+                                $poItem->increment('kuantitas_diterima', $itemData['kuantitas']);
+                            }
+                        }
+
                         // Log stock movement
                         StockMovement::create([
                             'store_id' => $request->user()->store_id,
@@ -128,6 +143,22 @@ class StockReceivingController extends Controller
                             'user_id' => $request->user()->id,
                         ]);
                     }
+                }
+            }
+
+            // If completed, update PO status if fully received
+            if ($status === 'completed' && $receiving->purchase_order_id) {
+                $po = \App\Models\PurchaseOrder::with('items')->find($receiving->purchase_order_id);
+                if ($po) {
+                    $allReceived = true;
+                    foreach ($po->items as $poItem) {
+                        if ($poItem->kuantitas_diterima < $poItem->kuantitas) {
+                            $allReceived = false;
+                            break;
+                        }
+                    }
+                    $po->status = $allReceived ? 'received' : 'ordered';
+                    $po->save();
                 }
             }
 
@@ -175,6 +206,7 @@ class StockReceivingController extends Controller
 
         $updatedReceiving = DB::transaction(function () use ($validated, $newStatus, $receiving, $request) {
             $receiving->update([
+                'purchase_order_id' => $validated['purchase_order_id'] ?? $receiving->purchase_order_id,
                 'supplier_id' => $validated['supplier_id'] ?? $receiving->supplier_id,
                 'supplier' => $validated['supplier'] ?? $receiving->supplier,
                 'nomor_faktur' => $validated['nomor_faktur'] ?? $receiving->nomor_faktur,
@@ -208,6 +240,10 @@ class StockReceivingController extends Controller
                         // Process pricing updates
                         $product->harga_beli = $itemData['harga_beli'];
                         
+                        // Pass details to ProductObserver
+                        $product->price_log_sumber = 'receiving';
+                        $product->price_log_referensi_id = $receiving->id;
+
                         $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
                         if ($updateHargaJual) {
                             if (!empty($itemData['harga_jual_baru'])) {
@@ -223,6 +259,16 @@ class StockReceivingController extends Controller
 
                         $product->save();
 
+                        // Update PO item quantity received
+                        if ($receiving->purchase_order_id) {
+                            $poItem = \App\Models\PurchaseOrderItem::where('purchase_order_id', $receiving->purchase_order_id)
+                                ->where('product_id', $product->id)
+                                ->first();
+                            if ($poItem) {
+                                $poItem->increment('kuantitas_diterima', $itemData['kuantitas']);
+                            }
+                        }
+
                         // Log stock movement
                         StockMovement::create([
                             'store_id' => $request->user()->store_id,
@@ -237,6 +283,22 @@ class StockReceivingController extends Controller
                             'user_id' => $request->user()->id,
                         ]);
                     }
+                }
+            }
+
+            // If completed, update PO status if fully received
+            if ($newStatus === 'completed' && $receiving->purchase_order_id) {
+                $po = \App\Models\PurchaseOrder::with('items')->find($receiving->purchase_order_id);
+                if ($po) {
+                    $allReceived = true;
+                    foreach ($po->items as $poItem) {
+                        if ($poItem->kuantitas_diterima < $poItem->kuantitas) {
+                            $allReceived = false;
+                            break;
+                        }
+                    }
+                    $po->status = $allReceived ? 'received' : 'ordered';
+                    $po->save();
                 }
             }
 

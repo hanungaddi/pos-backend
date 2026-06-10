@@ -14,6 +14,7 @@ class StockReceivingRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'purchase_order_id' => ['nullable', 'integer', 'exists:purchase_orders,id'],
             'supplier' => ['nullable', 'string', 'max:255'],
             'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
             'nomor_faktur' => ['nullable', 'string', 'max:255'],

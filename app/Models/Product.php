@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
+    public ?string $price_log_sumber = null;
+    public ?int $price_log_referensi_id = null;
+    public ?string $price_log_catatan = null;
+
     protected $fillable = [
         'category_id',
         'brand_id',
@@ -41,6 +45,8 @@ class Product extends Model
 
     protected static function booted()
     {
+        static::observe(\App\Observers\ProductObserver::class);
+
         static::saving(function (Product $product) {
             $hargaBeli = (int) ($product->harga_beli ?? 0);
             // Fallback to harga if harga_jual is not set
@@ -128,5 +134,10 @@ class Product extends Model
     public function transactionItems(): HasMany
     {
         return $this->hasMany(TransactionItem::class);
+    }
+
+    public function priceLogs(): HasMany
+    {
+        return $this->hasMany(ProductPriceLog::class);
     }
 }

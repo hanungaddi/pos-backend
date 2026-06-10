@@ -35,6 +35,8 @@ class RolePermissionSeeder extends Seeder
             'operate_cash_drawer',
             'manage_cash_drawer',
             'view_cash_drawer',
+            'view_purchase',
+            'manage_purchase',
         ];
 
         // Create permissions
@@ -67,6 +69,8 @@ class RolePermissionSeeder extends Seeder
             'operate_cash_drawer',
             'manage_cash_drawer',
             'view_cash_drawer',
+            'view_purchase',
+            'manage_purchase',
         ]);
 
         // Supervisor: can only read (view) products, inventory, sales, suppliers, and cash drawer
@@ -77,6 +81,7 @@ class RolePermissionSeeder extends Seeder
             'view_sales',
             'view_suppliers',
             'view_cash_drawer',
+            'view_purchase',
         ]);
 
         // Kasir: can view products, create sales, and operate their own cash drawer
