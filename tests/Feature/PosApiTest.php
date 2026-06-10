@@ -68,6 +68,8 @@ class PosApiTest extends TestCase
 
         $response = $this->actingAs($this->adminUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 20000,
                 'diskon' => 1000,
                 'pajak' => 500,
                 'items' => [
@@ -75,16 +77,7 @@ class PosApiTest extends TestCase
                 ],
             ]);
 
-        $response->assertCreated();
-        $trxId = $response->json('data.id');
-
-        $payResponse = $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
-                'nominal_bayar' => 20000,
-            ]);
-
-        $payResponse
-            ->assertOk()
+        $response->assertCreated()
             ->assertJsonPath('data.subtotal', 16000)
             ->assertJsonPath('data.diskon', 1000)
             ->assertJsonPath('data.pajak', 500)
@@ -117,20 +110,14 @@ class PosApiTest extends TestCase
 
         $response = $this->actingAs($this->adminUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 30000,
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 2],
                 ],
             ]);
 
-        $response->assertCreated();
-        $trxId = $response->json('data.id');
-
-        $payResponse = $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
-                'nominal_bayar' => 30000,
-            ]);
-
-        $payResponse->assertUnprocessable();
+        $response->assertUnprocessable();
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
@@ -150,18 +137,14 @@ class PosApiTest extends TestCase
 
         $response = $this->actingAs($this->adminUser, 'sanctum')
             ->postJson('/api/v1/transactions', [
+                'metode_pembayaran' => 'cash',
+                'cash_received' => 10000,
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 2],
                 ],
             ]);
 
         $response->assertCreated();
-        $trxId = $response->json('data.id');
-
-        $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson("/api/v1/transactions/{$trxId}/pay/cash", [
-                'nominal_bayar' => 10000,
-            ])->assertOk();
 
         $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/v1/reports/summary')

@@ -72,13 +72,32 @@ class TransactionController extends Controller
             'created_at' => ['nullable', 'date'],
             'diskon' => ['nullable', 'integer', 'min:0'],
             'pajak' => ['nullable', 'integer', 'min:0'],
-            'items' => ['nullable', 'array'],
+            'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required_without:items.*.barcode', 'nullable', 'integer', 'exists:products,id'],
             'items.*.barcode' => ['nullable', 'string'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            
+            // Payment fields
+            'metode_pembayaran' => ['required', 'string', 'in:cash,card,split'],
+            
+            // Cash payment validation
+            'cash_received' => ['nullable', 'numeric', 'min:0'],
+            'nominal_bayar' => ['nullable', 'numeric', 'min:0'],
+            
+            // Card payment validation
+            'jenis_kartu' => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'card_type' => ['nullable', 'string', 'in:debit,kredit,credit'],
+            'nomor_kartu_akhir' => ['nullable', 'string', 'size:4'],
+            'last_four' => ['nullable', 'string', 'size:4'],
+            'referensi_edc' => ['nullable', 'string', 'max:50'],
+            'reference_number' => ['nullable', 'string', 'max:50'],
+            
+            // Split payment validation
+            'cash_amount' => ['nullable', 'integer', 'min:0'],
+            'card_amount' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $transaction = DB::transaction(function () use ($validated, $request) {
+        $updatedTransaction = DB::transaction(function () use ($validated, $request) {
             $nomorTransaksi = $validated['nomor_transaksi'] ?? $this->generateTransactionNumber();
             
             $transaction = Transaction::create([
@@ -93,48 +112,158 @@ class TransactionController extends Controller
                 'created_at' => $validated['created_at'] ?? now(),
             ]);
 
-            if (!empty($validated['items'])) {
-                foreach ($validated['items'] as $itemData) {
-                    $product = null;
-                    if (!empty($itemData['product_id'])) {
-                        $product = Product::find($itemData['product_id']);
-                    } elseif (!empty($itemData['barcode'])) {
-                        $product = Product::where('barcode', $itemData['barcode'])->first();
-                    }
+            // Add items
+            foreach ($validated['items'] as $itemData) {
+                $product = null;
+                if (!empty($itemData['product_id'])) {
+                    $product = Product::find($itemData['product_id']);
+                } elseif (!empty($itemData['barcode'])) {
+                    $product = Product::where('barcode', $itemData['barcode'])->first();
+                }
 
-                    if (!$product) {
-                        throw ValidationException::withMessages([
-                            'items' => ['Produk tidak ditemukan.'],
-                        ]);
-                    }
-
-                    if ($product->status !== 'active') {
-                        throw ValidationException::withMessages([
-                            'items' => ["Produk {$product->nama} tidak aktif."],
-                        ]);
-                    }
-
-                    $subtotal = $product->harga * $itemData['quantity'];
-
-                    $transaction->items()->create([
-                        'product_id' => $product->id,
-                        'nama_produk' => $product->nama,
-                        'barcode' => $product->barcode,
-                        'harga_satuan' => $product->harga,
-                        'kuantitas' => $itemData['quantity'],
-                        'subtotal' => $subtotal,
-                        'is_taxable' => true,
-                        'diskon_item' => 0,
+                if (!$product) {
+                    throw ValidationException::withMessages([
+                        'items' => ['Produk tidak ditemukan.'],
                     ]);
                 }
+
+                if ($product->status !== 'active') {
+                    throw ValidationException::withMessages([
+                        'items' => ["Produk {$product->nama} tidak aktif."],
+                    ]);
+                }
+
+                $subtotal = $product->harga * $itemData['quantity'];
+
+                $transaction->items()->create([
+                    'product_id' => $product->id,
+                    'nama_produk' => $product->nama,
+                    'barcode' => $product->barcode,
+                    'harga_satuan' => $product->harga,
+                    'kuantitas' => $itemData['quantity'],
+                    'subtotal' => $subtotal,
+                    'is_taxable' => true,
+                    'diskon_item' => 0,
+                ]);
             }
 
+            // Calculate totals
             $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
+            $transaction->refresh(); // reload calculated fields
 
-            return $transaction->load(['items.product', 'user']);
+            $total = $transaction->total;
+            $metode = $validated['metode_pembayaran'];
+
+            $paymentDetails = [];
+
+            if ($metode === 'cash') {
+                $cashReceived = $validated['cash_received'] ?? $validated['nominal_bayar'] ?? null;
+                if ($cashReceived === null) {
+                    throw ValidationException::withMessages([
+                        'cash_received' => ['Nominal bayar wajib diisi.'],
+                    ]);
+                }
+                $cashReceived = (int) $cashReceived;
+                if ($cashReceived < $total) {
+                    throw ValidationException::withMessages([
+                        'cash_received' => ['Nominal bayar kurang dari total transaksi.'],
+                    ]);
+                }
+
+                $this->validateAndDeductStock($transaction, $request->user());
+                $cashDrawerSessionId = $this->recordCashDrawerSale($transaction, $request->user(), $total);
+
+                $paymentDetails = [
+                    'status' => 'completed',
+                    'metode_pembayaran' => 'cash',
+                    'nominal_bayar' => $cashReceived,
+                    'kembalian' => $cashReceived - $total,
+                    'cash_drawer_session_id' => $cashDrawerSessionId,
+                ];
+                
+                $logAction = 'checkout_cash';
+                $logMessage = "Transaction #{$transaction->id} was paid using Cash.";
+            } elseif ($metode === 'card') {
+                $jenisKartu = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
+                $nomorKartuAkhir = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
+                $referensiEdc = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
+
+                $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
+
+                $this->validateAndDeductStock($transaction, $request->user());
+
+                $paymentDetails = [
+                    'status' => 'completed',
+                    'metode_pembayaran' => 'card',
+                    'nominal_bayar' => $total,
+                    'kembalian' => 0,
+                    'jenis_kartu' => $jenisKartu,
+                    'nomor_kartu_akhir' => $nomorKartuAkhir,
+                    'referensi_edc' => $referensiEdc,
+                ];
+
+                $logAction = 'checkout_card';
+                $logMessage = "Transaction #{$transaction->id} was paid using Card.";
+            } elseif ($metode === 'split') {
+                $cashAmount = $validated['cash_amount'] ?? null;
+                $cardAmount = $validated['card_amount'] ?? null;
+                if ($cashAmount === null || $cardAmount === null) {
+                    throw ValidationException::withMessages([
+                        'cash_amount' => ['Split payment requires both cash_amount and card_amount.'],
+                    ]);
+                }
+
+                if (($cashAmount + $cardAmount) < $total) {
+                    throw ValidationException::withMessages([
+                        'cash_amount' => ['Jumlah kombinasi split kurang dari total transaksi.'],
+                    ]);
+                }
+
+                $nominalBayar = $validated['nominal_bayar'] ?? $validated['cash_received'] ?? null;
+                if ($nominalBayar === null) {
+                    throw ValidationException::withMessages([
+                        'nominal_bayar' => ['Nominal bayar tunai wajib diisi.'],
+                    ]);
+                }
+
+                if ($nominalBayar < $cashAmount) {
+                    throw ValidationException::withMessages([
+                        'nominal_bayar' => ['Nominal bayar tunai kurang dari porsi split tunai.'],
+                    ]);
+                }
+
+                $jenisKartu = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
+                $nomorKartuAkhir = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
+                $referensiEdc = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
+                $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
+
+                $this->validateAndDeductStock($transaction, $request->user());
+                $cashDrawerSessionId = $this->recordCashDrawerSale($transaction, $request->user(), (int) $cashAmount);
+
+                $paymentDetails = [
+                    'status' => 'completed',
+                    'metode_pembayaran' => 'split',
+                    'nominal_bayar' => $nominalBayar + $cardAmount,
+                    'kembalian' => $nominalBayar - $cashAmount,
+                    'jenis_kartu' => $jenisKartu,
+                    'nomor_kartu_akhir' => $nomorKartuAkhir,
+                    'referensi_edc' => $referensiEdc,
+                    'cash_drawer_session_id' => $cashDrawerSessionId,
+                ];
+
+                $logAction = 'checkout_split';
+                $logMessage = "Transaction #{$transaction->id} was paid using Split payment.";
+            }
+
+            $transaction->update($paymentDetails);
+
+            $finalTrx = $transaction->fresh(['items.product', 'user']);
+            \App\Models\ActivityLog::log($logAction, $logMessage, $finalTrx, ['total' => $finalTrx->total]);
+
+            return $finalTrx;
         });
 
-        return $this->responseSuccess($transaction, 'Transaksi berhasil dibuat.', 201);
+        return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar.', 201);
     }
 
     public function show(Request $request, $id): JsonResponse
@@ -153,359 +282,6 @@ class TransactionController extends Controller
         }
 
         return $this->responseSuccess($transaction, 'Detail transaksi berhasil dimuat.');
-    }
-
-    public function addItem(Request $request, $id): JsonResponse
-    {
-        $transaction = Transaction::where('status', 'draft')->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi draft tidak ditemukan.'], 404);
-        }
-
-        $validated = $request->validate([
-            'product_id' => ['required_without:barcode', 'nullable', 'integer', 'exists:products,id'],
-            'barcode' => ['nullable', 'string'],
-            'quantity' => ['required', 'integer', 'min:1'],
-        ]);
-
-        $product = null;
-        if (!empty($validated['product_id'])) {
-            $product = Product::find($validated['product_id']);
-        } elseif (!empty($validated['barcode'])) {
-            $product = Product::where('barcode', $validated['barcode'])->first();
-        }
-
-        if (!$product) {
-            return response()->json(['message' => 'Produk tidak ditemukan.'], 404);
-        }
-
-        if ($product->status !== 'active') {
-            return response()->json(['message' => 'Produk tidak aktif.'], 400);
-        }
-
-        DB::transaction(function () use ($transaction, $product, $validated) {
-            // Check if item already exists in transaction
-            $existingItem = $transaction->items()->where('product_id', $product->id)->first();
-
-            if ($existingItem) {
-                $newQty = $existingItem->kuantitas + $validated['quantity'];
-                $existingItem->update([
-                    'kuantitas' => $newQty,
-                    'subtotal' => $existingItem->harga_satuan * $newQty,
-                ]);
-            } else {
-                $transaction->items()->create([
-                    'product_id' => $product->id,
-                    'nama_produk' => $product->nama,
-                    'barcode' => $product->barcode,
-                    'harga_satuan' => $product->harga,
-                    'kuantitas' => $validated['quantity'],
-                    'subtotal' => $product->harga * $validated['quantity'],
-                    'is_taxable' => true,
-                    'diskon_item' => 0,
-                ]);
-            }
-
-            $this->recalculateTotals($transaction);
-        });
-
-        return $this->responseSuccess($transaction->load('items.product'), 'Item berhasil ditambahkan.');
-    }
-
-    public function updateItem(Request $request, $id, $itemId): JsonResponse
-    {
-        $transaction = Transaction::where('status', 'draft')->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi draft tidak ditemukan.'], 404);
-        }
-
-        $item = $transaction->items()->find($itemId);
-        if (!$item) {
-            return response()->json(['message' => 'Item transaksi tidak ditemukan.'], 404);
-        }
-
-        $validated = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
-        ]);
-
-        DB::transaction(function () use ($transaction, $item, $validated) {
-            $item->update([
-                'kuantitas' => $validated['quantity'],
-                'subtotal' => $item->harga_satuan * $validated['quantity'],
-            ]);
-
-            $this->recalculateTotals($transaction);
-        });
-
-        return $this->responseSuccess($transaction->load('items.product'), 'Item berhasil diperbarui.');
-    }
-
-    public function removeItem($id, $itemId): JsonResponse
-    {
-        $transaction = Transaction::where('status', 'draft')->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi draft tidak ditemukan.'], 404);
-        }
-
-        $item = $transaction->items()->find($itemId);
-        if (!$item) {
-            return response()->json(['message' => 'Item transaksi tidak ditemukan.'], 404);
-        }
-
-        DB::transaction(function () use ($transaction, $item) {
-            $item->delete();
-            $this->recalculateTotals($transaction);
-        });
-
-        return $this->responseSuccess($transaction->load('items.product'), 'Item berhasil dihapus.');
-    }
-
-    public function hold($id): JsonResponse
-    {
-        $transaction = Transaction::where('status', 'draft')->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi draft tidak ditemukan.'], 404);
-        }
-
-        if ($transaction->items()->count() === 0) {
-            return response()->json(['message' => 'Transaksi kosong tidak dapat ditunda.'], 400);
-        }
-
-        $transaction->update(['status' => 'hold']);
-
-        \App\Models\ActivityLog::log('hold_transaction', "Transaction #{$transaction->id} was put on hold.", $transaction);
-
-        return $this->responseSuccess($transaction, 'Transaksi berhasil ditunda.');
-    }
-
-    public function recall($id): JsonResponse
-    {
-        $transaction = Transaction::where('status', 'hold')->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi hold tidak ditemukan.'], 404);
-        }
-
-        $transaction->update(['status' => 'draft']);
-
-        \App\Models\ActivityLog::log('recall_transaction', "Transaction #{$transaction->id} was recalled.", $transaction);
-
-        return $this->responseSuccess($transaction->load('items.product'), 'Transaksi berhasil dipanggil kembali.');
-    }
-
-    public function listOnHold(Request $request): JsonResponse
-    {
-        $transactions = Transaction::where('status', 'hold')
-            ->where('user_id', $request->user()->id)
-            ->latest()
-            ->get();
-
-        return $this->responseSuccess($transactions, 'Daftar transaksi tunda berhasil dimuat.');
-    }
-
-    public function payCash(Request $request, $id): JsonResponse
-    {
-        $transaction = Transaction::whereIn('status', ['draft', 'hold'])->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi aktif tidak ditemukan.'], 404);
-        }
-
-        $validated = $request->validate([
-            'cash_received'  => ['nullable', 'numeric', 'min:0'],
-            'nominal_bayar'  => ['nullable', 'numeric', 'min:0'],
-            'diskon'         => ['nullable', 'integer', 'min:0'],
-            'pajak'          => ['nullable', 'integer', 'min:0'],
-        ]);
-
-        $cashReceived = $validated['cash_received'] ?? $validated['nominal_bayar'] ?? null;
-
-        if ($cashReceived === null) {
-            throw ValidationException::withMessages([
-                'cash_received' => ['Nominal bayar wajib diisi.'],
-            ]);
-        }
-
-        $cashReceived = (int) $cashReceived;
-
-        $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
-
-        if ($cashReceived < $transaction->total) {
-            throw ValidationException::withMessages([
-                'cash_received' => ['Nominal bayar kurang dari total transaksi.'],
-            ]);
-        }
-
-        $updatedTransaction = DB::transaction(function () use ($transaction, $cashReceived, $request) {
-            $this->validateAndDeductStock($transaction, $request->user());
-            $cashDrawerSessionId = $this->recordCashDrawerSale($transaction, $request->user(), $transaction->total);
-
-            $transaction->update([
-                'status'           => 'completed',
-                'metode_pembayaran'=> 'cash',
-                'nominal_bayar'    => $cashReceived,
-                'kembalian'        => $cashReceived - $transaction->total,
-                'cash_drawer_session_id' => $cashDrawerSessionId,
-            ]);
-
-            return $transaction->fresh(['items.product', 'user']);
-        });
-
-        \App\Models\ActivityLog::log('checkout_cash', "Transaction #{$transaction->id} was paid using Cash.", $updatedTransaction, ['total' => $updatedTransaction->total]);
-
-        return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar.');
-    }
-
-    public function payCard(Request $request, $id): JsonResponse
-    {
-        $transaction = Transaction::whereIn('status', ['draft', 'hold'])->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi aktif tidak ditemukan.'], 404);
-        }
-
-        $validated = $request->validate([
-            'jenis_kartu'        => ['nullable', 'string', 'in:debit,kredit,credit'],
-            'card_type'          => ['nullable', 'string', 'in:debit,kredit,credit'],
-            'nomor_kartu_akhir'  => ['nullable', 'string', 'size:4'],
-            'last_four'          => ['nullable', 'string', 'size:4'],
-            'referensi_edc'      => ['nullable', 'string', 'max:50'],
-            'reference_number'   => ['nullable', 'string', 'max:50'],
-            'diskon'             => ['nullable', 'integer', 'min:0'],
-            'pajak'              => ['nullable', 'integer', 'min:0'],
-        ]);
-
-        $jenisKartu       = $validated['jenis_kartu'] ?? $validated['card_type'] ?? 'debit';
-        $nomorKartuAkhir  = $validated['nomor_kartu_akhir'] ?? $validated['last_four'] ?? '0000';
-        $referensiEdc     = $validated['referensi_edc'] ?? $validated['reference_number'] ?? ('EDC-' . now()->timestamp);
-
-        $jenisKartu = $jenisKartu === 'credit' ? 'kredit' : $jenisKartu;
-
-        $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
-
-        $updatedTransaction = DB::transaction(function () use ($transaction, $jenisKartu, $nomorKartuAkhir, $referensiEdc, $request) {
-            $this->validateAndDeductStock($transaction, $request->user());
-
-            $transaction->update([
-                'status'            => 'completed',
-                'metode_pembayaran' => 'card',
-                'nominal_bayar'     => $transaction->total,
-                'kembalian'         => 0,
-                'jenis_kartu'       => $jenisKartu,
-                'nomor_kartu_akhir' => $nomorKartuAkhir,
-                'referensi_edc'     => $referensiEdc,
-            ]);
-
-            return $transaction->fresh(['items.product', 'user']);
-        });
-
-        \App\Models\ActivityLog::log('checkout_card', "Transaction #{$transaction->id} was paid using Card.", $updatedTransaction, ['total' => $updatedTransaction->total]);
-
-        return $this->responseSuccess($updatedTransaction, 'Transaksi berhasil dibayar via kartu.');
-    }
-
-    public function paySplit(Request $request, $id): JsonResponse
-    {
-        $transaction = Transaction::whereIn('status', ['draft', 'hold'])->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi aktif tidak ditemukan.'], 404);
-        }
-
-        $validated = $request->validate([
-            'cash_amount' => ['required', 'integer', 'min:0'],
-            'card_amount' => ['required', 'integer', 'min:0'],
-            'nominal_bayar' => ['required', 'integer', 'min:0'],
-            'jenis_kartu' => ['required', 'string', 'in:debit,kredit'],
-            'nomor_kartu_akhir' => ['required', 'string', 'size:4'],
-            'referensi_edc' => ['required', 'string', 'max:50'],
-            'diskon' => ['nullable', 'integer', 'min:0'],
-            'pajak' => ['nullable', 'integer', 'min:0'],
-        ]);
-
-        $this->recalculateTotals($transaction, $validated['pajak'] ?? null, $validated['diskon'] ?? null);
-
-        if (($validated['cash_amount'] + $validated['card_amount']) < $transaction->total) {
-            throw ValidationException::withMessages([
-                'cash_amount' => ['Jumlah kombinasi split kurang dari total transaksi.'],
-            ]);
-        }
-
-        if ($validated['nominal_bayar'] < $validated['cash_amount']) {
-            throw ValidationException::withMessages([
-                'nominal_bayar' => ['Nominal bayar tunai kurang dari porsi split tunai.'],
-            ]);
-        }
-
-        $updatedTransaction = DB::transaction(function () use ($transaction, $validated, $request) {
-            $this->validateAndDeductStock($transaction, $request->user());
-            $cashDrawerSessionId = $this->recordCashDrawerSale($transaction, $request->user(), (int) $validated['cash_amount']);
-
-            $transaction->update([
-                'status' => 'completed',
-                'metode_pembayaran' => 'split',
-                'nominal_bayar' => $validated['nominal_bayar'] + $validated['card_amount'],
-                'kembalian' => $validated['nominal_bayar'] - $validated['cash_amount'],
-                'jenis_kartu' => $validated['jenis_kartu'],
-                'nomor_kartu_akhir' => $validated['nomor_kartu_akhir'],
-                'referensi_edc' => $validated['referensi_edc'],
-                'cash_drawer_session_id' => $cashDrawerSessionId,
-            ]);
-
-            return $transaction->fresh(['items.product', 'user']);
-        });
-
-        \App\Models\ActivityLog::log('checkout_split', "Transaction #{$transaction->id} was paid using Split payment.", $updatedTransaction, ['total' => $updatedTransaction->total]);
-
-        return $this->responseSuccess($updatedTransaction, 'Transaksi split berhasil dibayar.');
-    }
-
-    public function void(Request $request, $id): JsonResponse
-    {
-        $transaction = Transaction::where('status', 'completed')->find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Transaksi completed tidak ditemukan.'], 404);
-        }
-
-        $validated = $request->validate([
-            'catatan_void' => ['required', 'string', 'max:255'],
-        ]);
-
-        $voidedTransaction = DB::transaction(function () use ($transaction, $validated, $request) {
-            foreach ($transaction->items as $item) {
-                $product = Product::where('id', $item->product_id)->lockForUpdate()->first();
-                if ($product) {
-                    $stokSebelum = $product->stok;
-                    $stokSesudah = $stokSebelum + $item->kuantitas;
-
-                    $product->increment('stok', $item->kuantitas);
-
-                    StockMovement::create([
-                        'store_id' => $request->user()->store_id,
-                        'product_id' => $product->id,
-                        'tipe' => 'void',
-                        'kuantitas' => $item->kuantitas,
-                        'stok_sebelum' => $stokSebelum,
-                        'stok_sesudah' => $stokSesudah,
-                        'referensi_id' => $transaction->id,
-                        'referensi_tipe' => 'transaction',
-                        'alasan' => 'Void transaksi: ' . $validated['catatan_void'],
-                        'user_id' => $request->user()->id,
-                    ]);
-                }
-            }
-
-            $transaction->update([
-                'status' => 'void',
-                'catatan_void' => $validated['catatan_void'],
-                'void_by' => $request->user()->id,
-                'voided_at' => now(),
-            ]);
-
-            $this->recordCashDrawerRefund($transaction, $request->user());
-
-            return $transaction->fresh(['items.product', 'user', 'voidBy']);
-        });
-
-        \App\Models\ActivityLog::log('void_transaction', "Transaction #{$transaction->id} was voided. Reason: {$validated['catatan_void']}", $voidedTransaction);
-
-        return $this->responseSuccess($voidedTransaction, 'Transaksi berhasil di-void.');
     }
 
     private function validateAndDeductStock(Transaction $transaction, $user): void
@@ -603,74 +379,7 @@ class TransactionController extends Controller
         return $session->id;
     }
 
-    private function recordCashDrawerRefund(Transaction $transaction, $user): void
-    {
-        if (!$transaction->cash_drawer_session_id || !in_array($transaction->metode_pembayaran, ['cash', 'split'])) {
-            return;
-        }
 
-        $saleMovement = CashDrawerMovement::query()
-            ->where('cash_drawer_session_id', $transaction->cash_drawer_session_id)
-            ->where('reference_type', 'transaction')
-            ->where('reference_id', $transaction->id)
-            ->where('type', 'cash_sale')
-            ->first();
-
-        if (!$saleMovement) {
-            return;
-        }
-
-        $session = CashDrawerSession::query()
-            ->open()
-            ->whereKey($transaction->cash_drawer_session_id)
-            ->lockForUpdate()
-            ->first();
-
-        if (!$session) {
-            return;
-        }
-
-        $refundAmount = $saleMovement->amount;
-        $balanceBefore = $session->expected_cash;
-
-        if ($refundAmount > $balanceBefore) {
-            throw ValidationException::withMessages([
-                'cash_drawer' => ['Saldo cash drawer tidak cukup untuk mencatat refund transaksi ini.'],
-            ]);
-        }
-
-        $balanceAfter = $balanceBefore - $refundAmount;
-
-        $session->update([
-            'expected_cash' => $balanceAfter,
-            'cash_refunds_total' => $session->cash_refunds_total + $refundAmount,
-        ]);
-
-        $movement = $session->recordMovement(
-            'cash_refund',
-            $refundAmount,
-            $balanceBefore,
-            $balanceAfter,
-            $user,
-            'Refund void transaksi ' . $transaction->nomor_transaksi,
-            $transaction->id,
-            'transaction'
-        );
-
-        \App\Models\ActivityLog::log(
-            'cash_drawer_cash_refund',
-            "Cash drawer #{$session->id} recorded cash refund for voided transaction {$transaction->nomor_transaksi}.",
-            $session,
-            [
-                'movement_id' => $movement->id,
-                'transaction_id' => $transaction->id,
-                'transaction_number' => $transaction->nomor_transaksi,
-                'amount' => $refundAmount,
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter,
-            ]
-        );
-    }
 
     private function recalculateTotals(Transaction $transaction, ?int $customTax = null, ?int $customDiscount = null): void
     {
