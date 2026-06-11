@@ -15,11 +15,17 @@ class StockReceivingItem extends Model
         'product_id',
         'kuantitas',
         'harga_beli',
+        'update_harga_jual',
+        'harga_jual_baru',
+        'margin_baru',
     ];
 
     protected $casts = [
         'harga_beli' => 'integer',
         'kuantitas' => 'integer',
+        'update_harga_jual' => 'boolean',
+        'harga_jual_baru' => 'integer',
+        'margin_baru' => 'float',
     ];
 
     public function receiving(): BelongsTo

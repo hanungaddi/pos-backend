@@ -107,6 +107,16 @@ class InventoryManagementTest extends TestCase
                 'supplier' => 'PT Distribusi Sembako',
                 'nomor_faktur' => 'FAK-12345',
                 'catatan' => 'Penerimaan rutin bulanan',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.supplier', 'PT Distribusi Sembako');
+
+        $rcvId = $response->json('data.id');
+
+        // Add items separately
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -114,11 +124,12 @@ class InventoryManagementTest extends TestCase
                         'harga_beli' => 50000,
                     ]
                 ]
-            ]);
+            ])->assertStatus(200);
 
-        $response->assertStatus(201)
-            ->assertJsonPath('data.supplier', 'PT Distribusi Sembako')
-            ->assertJsonStructure(['message', 'data' => ['nomor_penerimaan', 'items']]);
+        // Complete the receiving note
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId}/complete")
+            ->assertStatus(200);
 
         // Verify stock is increased
         $this->assertEquals(30, $this->product->fresh()->stok);
@@ -136,9 +147,7 @@ class InventoryManagementTest extends TestCase
         // Supervisor CANNOT create receiving (403)
         $this->actingAs($this->supervisorUser, 'sanctum')
             ->postJson('/api/v1/purchase/receiving', [
-                'items' => [
-                    ['product_id' => $this->product->id, 'kuantitas' => 5, 'harga_beli' => 50000]
-                ]
+                'supplier' => 'PT Distribusi Sembako',
             ])
             ->assertStatus(403);
     }

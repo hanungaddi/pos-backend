@@ -67,14 +67,6 @@ class PurchaseOrderController extends Controller
         $po = DB::transaction(function () use ($validated, $request) {
             $nomorPo = $this->generateNomorPo();
 
-            // Calculate estimated value
-            $nilaiEstimasi = 0;
-            if (isset($validated['items']) && is_array($validated['items'])) {
-                foreach ($validated['items'] as $itemData) {
-                    $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
-                }
-            }
-
             $po = PurchaseOrder::create([
                 'store_id' => $request->user()->store_id,
                 'nomor_po' => $nomorPo,
@@ -82,21 +74,10 @@ class PurchaseOrderController extends Controller
                 'supplier_name' => $validated['supplier_name'] ?? null,
                 'tanggal_po' => $validated['tanggal_po'],
                 'status' => 'draft',
-                'nilai_estimasi' => $nilaiEstimasi,
+                'nilai_estimasi' => 0,
                 'catatan' => $validated['catatan'] ?? null,
                 'user_id' => $request->user()->id,
             ]);
-
-            if (isset($validated['items']) && is_array($validated['items'])) {
-                foreach ($validated['items'] as $itemData) {
-                    $po->items()->create([
-                        'product_id' => $itemData['product_id'],
-                        'kuantitas' => $itemData['kuantitas'],
-                        'kuantitas_diterima' => 0,
-                        'harga_estimasi' => $itemData['harga_estimasi'],
-                    ]);
-                }
-            }
 
             return $po->load(['items.product', 'user', 'supplier']);
         });
@@ -119,6 +100,12 @@ class PurchaseOrderController extends Controller
             return response()->json(['message' => 'Purchase Order tidak ditemukan.'], 404);
         }
 
+        $po->receivings_count = \App\Models\StockReceiving::where('purchase_order_id', $id)->count();
+
+        foreach ($po->items as $item) {
+            $item->sisa_belum_diterima = max(0, $item->kuantitas - $item->kuantitas_diterima);
+        }
+
         return $this->responseSuccess($po, 'Detail Purchase Order.');
     }
 
@@ -137,40 +124,12 @@ class PurchaseOrderController extends Controller
         $validated = $request->validated();
 
         $updatedPo = DB::transaction(function () use ($validated, $po) {
-            $updateData = [
+            $po->update([
                 'supplier_id' => $validated['supplier_id'] ?? $po->supplier_id,
                 'supplier_name' => $validated['supplier_name'] ?? $po->supplier_name,
                 'tanggal_po' => $validated['tanggal_po'] ?? $po->tanggal_po,
                 'catatan' => $validated['catatan'] ?? $po->catatan,
-            ];
-
-            if (array_key_exists('items', $validated)) {
-                // Calculate estimated value
-                $nilaiEstimasi = 0;
-                if (is_array($validated['items'])) {
-                    foreach ($validated['items'] as $itemData) {
-                        $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
-                    }
-                }
-                $updateData['nilai_estimasi'] = $nilaiEstimasi;
-            }
-
-            $po->update($updateData);
-
-            if (array_key_exists('items', $validated)) {
-                $po->items()->delete();
-
-                if (is_array($validated['items'])) {
-                    foreach ($validated['items'] as $itemData) {
-                        $po->items()->create([
-                            'product_id' => $itemData['product_id'],
-                            'kuantitas' => $itemData['kuantitas'],
-                            'kuantitas_diterima' => 0,
-                            'harga_estimasi' => $itemData['harga_estimasi'],
-                        ]);
-                    }
-                }
-            }
+            ]);
 
             return $po->load(['items.product', 'user', 'supplier']);
         });
@@ -183,6 +142,57 @@ class PurchaseOrderController extends Controller
         );
 
         return $this->responseSuccess($updatedPo, 'Purchase Order berhasil diperbarui.');
+    }
+
+    public function updateItems(Request $request, int $id): JsonResponse
+    {
+        $po = PurchaseOrder::find($id);
+
+        if (!$po) {
+            return response()->json(['message' => 'Purchase Order tidak ditemukan.'], 404);
+        }
+
+        if ($po->status !== 'draft') {
+            return response()->json(['message' => 'Hanya Purchase Order dengan status draft yang dapat diubah.'], 422);
+        }
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.kuantitas' => 'required|integer|min:1',
+            'items.*.harga_estimasi' => 'required|integer|min:0',
+        ]);
+
+        $updatedPo = DB::transaction(function () use ($validated, $po) {
+            // Calculate estimated value
+            $nilaiEstimasi = 0;
+            foreach ($validated['items'] as $itemData) {
+                $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
+            }
+
+            $po->update(['nilai_estimasi' => $nilaiEstimasi]);
+            $po->items()->delete();
+
+            foreach ($validated['items'] as $itemData) {
+                $po->items()->create([
+                    'product_id' => $itemData['product_id'],
+                    'kuantitas' => $itemData['kuantitas'],
+                    'kuantitas_diterima' => 0,
+                    'harga_estimasi' => $itemData['harga_estimasi'],
+                ]);
+            }
+
+            return $po->load(['items.product', 'user', 'supplier']);
+        });
+
+        ActivityLog::log(
+            'update_purchase_order_items',
+            "Items for Purchase Order '{$po->nomor_po}' were updated.",
+            $updatedPo,
+            ['new' => $updatedPo->toArray()]
+        );
+
+        return $this->responseSuccess($updatedPo, 'Item Purchase Order berhasil diperbarui.');
     }
 
     public function destroy(int $id): JsonResponse
@@ -227,6 +237,10 @@ class PurchaseOrderController extends Controller
             return response()->json(['message' => 'Hanya Purchase Order dengan status draft yang dapat difinalisasi.'], 422);
         }
 
+        if ($po->items()->count() === 0) {
+            return response()->json(['message' => 'Tidak dapat memfinalisasi Purchase Order tanpa item.'], 422);
+        }
+
         $po->update(['status' => 'ordered']);
 
         ActivityLog::log(
@@ -255,6 +269,11 @@ class PurchaseOrderController extends Controller
             return response()->json(['message' => 'Purchase Order sudah dibatalkan.'], 422);
         }
 
+        $hasReceiving = \App\Models\StockReceiving::where('purchase_order_id', $id)->exists();
+        if ($hasReceiving) {
+            return response()->json(['message' => 'Tidak dapat membatalkan Purchase Order yang memiliki penerimaan terkait.'], 422);
+        }
+
         $po->update(['status' => 'cancelled']);
 
         ActivityLog::log(
@@ -265,6 +284,36 @@ class PurchaseOrderController extends Controller
         );
 
         return $this->responseSuccess($po->load(['items.product', 'user', 'supplier']), 'Purchase Order berhasil dibatalkan.');
+    }
+
+    public function outstanding(Request $request): JsonResponse
+    {
+        $query = PurchaseOrder::query()
+            ->with(['supplier'])
+            ->whereIn('status', ['ordered', 'partially_received']);
+
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->integer('supplier_id'));
+        }
+
+        $pos = $query->latest()->get();
+
+        return $this->responseSuccess($pos, 'Outstanding Purchase Orders.');
+    }
+
+    public function receivings(int $id): JsonResponse
+    {
+        $po = PurchaseOrder::find($id);
+        if (!$po) {
+            return response()->json(['message' => 'Purchase Order tidak ditemukan.'], 404);
+        }
+
+        $receivings = \App\Models\StockReceiving::with(['user', 'supplier_relationship'])
+            ->where('purchase_order_id', $id)
+            ->latest()
+            ->get();
+
+        return $this->responseSuccess($receivings, 'List penerimaan terkait Purchase Order.');
     }
 
     private function generateNomorPo(): string

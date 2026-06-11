@@ -24,10 +24,6 @@ class PurchaseOrderRequest extends FormRequest
             'supplier_name' => 'nullable|string|max:255',
             'tanggal_po' => 'required|date',
             'catatan' => 'nullable|string',
-            'items' => 'nullable|array',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.kuantitas' => 'required|integer|min:1',
-            'items.*.harga_estimasi' => 'required|integer|min:0',
         ];
     }
 }

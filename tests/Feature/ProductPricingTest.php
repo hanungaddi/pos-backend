@@ -106,7 +106,13 @@ class ProductPricingTest extends TestCase
         $response = $this->actingAs($this->managerUser, 'sanctum')
             ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
-                'status' => 'completed',
+            ]);
+
+        $response->assertStatus(201);
+        $rcvId = $response->json('data.id');
+
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -115,9 +121,11 @@ class ProductPricingTest extends TestCase
                         'update_harga_jual' => false,
                     ]
                 ]
-            ]);
+            ])->assertStatus(200);
 
-        $response->assertStatus(201);
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId}/complete")
+            ->assertStatus(200);
         $productFresh = $this->product->fresh();
         $this->assertEquals(11000, $productFresh->harga_beli);
         $this->assertEquals(12000, $productFresh->harga_jual); // Unchanged
@@ -131,7 +139,13 @@ class ProductPricingTest extends TestCase
         $response2 = $this->actingAs($this->managerUser, 'sanctum')
             ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
-                'status' => 'completed',
+            ]);
+
+        $response2->assertStatus(201);
+        $rcvId2 = $response2->json('data.id');
+
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId2}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -140,9 +154,11 @@ class ProductPricingTest extends TestCase
                         'update_harga_jual' => true,
                     ]
                 ]
-            ]);
+            ])->assertStatus(200);
 
-        $response2->assertStatus(201);
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId2}/complete")
+            ->assertStatus(200);
         $productFresh2 = $this->product->fresh();
         $this->assertEquals(11000, $productFresh2->harga_beli);
         $this->assertEquals(13200, $productFresh2->harga_jual); // 11000 * 1.20
@@ -152,7 +168,13 @@ class ProductPricingTest extends TestCase
         $response3 = $this->actingAs($this->managerUser, 'sanctum')
             ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
-                'status' => 'completed',
+            ]);
+
+        $response3->assertStatus(201);
+        $rcvId3 = $response3->json('data.id');
+
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId3}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -162,9 +184,11 @@ class ProductPricingTest extends TestCase
                         'harga_jual_baru' => 13500,
                     ]
                 ]
-            ]);
+            ])->assertStatus(200);
 
-        $response3->assertStatus(201);
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId3}/complete")
+            ->assertStatus(200);
         $productFresh3 = $this->product->fresh();
         $this->assertEquals(11000, $productFresh3->harga_beli);
         $this->assertEquals(13500, $productFresh3->harga_jual); // Custom selling price
