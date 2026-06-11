@@ -33,6 +33,13 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
             'status'     => $row['status'] ?? 'active',
             'barcode'    => $barcode,
             'margin'     => 0, // skip margin calc saat import
+            // 'harga_member' => $row['harga_member'] ?? 0,
+            // 'harga_grosir' => $row['harga_grosir'] ?? 0,
+            // 'satuan_beli' => $row['satuan_beli'] ?? 0,
+            // 'satuan_jual' => $row['satuan_jual'] ?? 0,
+            // 'is_grosir' => $row['is_grosir'] ?? 0,
+            // 'min_pembelian_grosir' => $row['min_pembelian_grosir'] ?? 0,
+            // 'min_stok' => $row['min_stock'] ?? 0
         ];
 
         try {

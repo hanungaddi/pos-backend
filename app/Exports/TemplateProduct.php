@@ -23,6 +23,13 @@ class TemplateProduct implements FromCollection, WithHeadings
             'harga_beli',
             'barcode',
             'status',
+            // 'harga_member',
+            // 'harga_grosir',
+            // 'satuan_beli',
+            // 'satuan_jual',
+            // 'is_grosir',
+            // 'min_pembelian_grosir',
+            // 'min_stok'
         ];
     }
 }
