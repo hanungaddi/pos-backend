@@ -40,10 +40,10 @@ class DatabaseSeeder extends Seeder
             ['nama' => 'Air Mineral 600ml', 'merek' => 'Aqua', 'barcode' => '8991234560036', 'stok' => 24, 'harga' => 4000],
         ])->each(function (array $product): void {
             Product::query()->updateOrCreate([
+                'barcode' => $product['barcode'],
+            ], [
                 'nama' => $product['nama'],
                 'merek' => $product['merek'],
-            ], [
-                'barcode' => $product['barcode'],
                 'stok' => $product['stok'],
                 'harga' => $product['harga'],
             ]);
