@@ -69,8 +69,10 @@ class PurchaseOrderController extends Controller
 
             // Calculate estimated value
             $nilaiEstimasi = 0;
-            foreach ($validated['items'] as $itemData) {
-                $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
+            if (isset($validated['items']) && is_array($validated['items'])) {
+                foreach ($validated['items'] as $itemData) {
+                    $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
+                }
             }
 
             $po = PurchaseOrder::create([
@@ -85,13 +87,15 @@ class PurchaseOrderController extends Controller
                 'user_id' => $request->user()->id,
             ]);
 
-            foreach ($validated['items'] as $itemData) {
-                $po->items()->create([
-                    'product_id' => $itemData['product_id'],
-                    'kuantitas' => $itemData['kuantitas'],
-                    'kuantitas_diterima' => 0,
-                    'harga_estimasi' => $itemData['harga_estimasi'],
-                ]);
+            if (isset($validated['items']) && is_array($validated['items'])) {
+                foreach ($validated['items'] as $itemData) {
+                    $po->items()->create([
+                        'product_id' => $itemData['product_id'],
+                        'kuantitas' => $itemData['kuantitas'],
+                        'kuantitas_diterima' => 0,
+                        'harga_estimasi' => $itemData['harga_estimasi'],
+                    ]);
+                }
             }
 
             return $po->load(['items.product', 'user', 'supplier']);
@@ -133,29 +137,39 @@ class PurchaseOrderController extends Controller
         $validated = $request->validated();
 
         $updatedPo = DB::transaction(function () use ($validated, $po) {
-            // Calculate estimated value
-            $nilaiEstimasi = 0;
-            foreach ($validated['items'] as $itemData) {
-                $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
-            }
-
-            $po->update([
+            $updateData = [
                 'supplier_id' => $validated['supplier_id'] ?? $po->supplier_id,
                 'supplier_name' => $validated['supplier_name'] ?? $po->supplier_name,
                 'tanggal_po' => $validated['tanggal_po'] ?? $po->tanggal_po,
-                'nilai_estimasi' => $nilaiEstimasi,
                 'catatan' => $validated['catatan'] ?? $po->catatan,
-            ]);
+            ];
 
-            $po->items()->delete();
+            if (array_key_exists('items', $validated)) {
+                // Calculate estimated value
+                $nilaiEstimasi = 0;
+                if (is_array($validated['items'])) {
+                    foreach ($validated['items'] as $itemData) {
+                        $nilaiEstimasi += $itemData['kuantitas'] * $itemData['harga_estimasi'];
+                    }
+                }
+                $updateData['nilai_estimasi'] = $nilaiEstimasi;
+            }
 
-            foreach ($validated['items'] as $itemData) {
-                $po->items()->create([
-                    'product_id' => $itemData['product_id'],
-                    'kuantitas' => $itemData['kuantitas'],
-                    'kuantitas_diterima' => 0,
-                    'harga_estimasi' => $itemData['harga_estimasi'],
-                ]);
+            $po->update($updateData);
+
+            if (array_key_exists('items', $validated)) {
+                $po->items()->delete();
+
+                if (is_array($validated['items'])) {
+                    foreach ($validated['items'] as $itemData) {
+                        $po->items()->create([
+                            'product_id' => $itemData['product_id'],
+                            'kuantitas' => $itemData['kuantitas'],
+                            'kuantitas_diterima' => 0,
+                            'harga_estimasi' => $itemData['harga_estimasi'],
+                        ]);
+                    }
+                }
             }
 
             return $po->load(['items.product', 'user', 'supplier']);

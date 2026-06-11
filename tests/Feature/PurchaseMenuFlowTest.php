@@ -347,4 +347,105 @@ class PurchaseMenuFlowTest extends TestCase
         // Verify Kas Utama balance remains unchanged: 1.000.000
         $this->assertEquals(1000000, $this->cashAccount->fresh()->saldo);
     }
+
+    public function test_can_create_and_update_purchase_order_without_items(): void
+    {
+        // 1. Create PO Draft with items omitted
+        $response = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/order', [
+                'supplier_id' => $this->supplier->id,
+                'tanggal_po' => '2026-06-11',
+                'catatan' => 'Draft PO without items',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.nilai_estimasi', 0)
+            ->assertJsonCount(0, 'data.items');
+
+        $poId = $response->json('data.id');
+
+        // 2. Update PO Draft header only (keep items omitted)
+        $responseHeaderUpdate = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/order/{$poId}", [
+                'supplier_id' => $this->supplier->id,
+                'tanggal_po' => '2026-06-11',
+                'catatan' => 'Draft PO without items updated',
+            ]);
+
+        $responseHeaderUpdate->assertStatus(200)
+            ->assertJsonPath('data.catatan', 'Draft PO without items updated')
+            ->assertJsonCount(0, 'data.items');
+
+        // 3. Update PO Draft and add items
+        $responseAddItems = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/order/{$poId}", [
+                'supplier_id' => $this->supplier->id,
+                'tanggal_po' => '2026-06-11',
+                'catatan' => 'Draft PO with items now',
+                'items' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'kuantitas' => 10,
+                        'harga_estimasi' => 29000,
+                    ]
+                ]
+            ]);
+
+        $responseAddItems->assertStatus(200)
+            ->assertJsonPath('data.nilai_estimasi', 290000)
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.product_id', $this->product->id);
+    }
+
+    public function test_can_create_and_update_stock_receiving_without_items(): void
+    {
+        // 1. Create Stock Receiving Draft with items omitted
+        $response = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/receiving', [
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-DRAFT-123',
+                'status' => 'draft',
+                'catatan' => 'Draft receiving without items',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonCount(0, 'data.items');
+
+        $rcvId = $response->json('data.id');
+
+        // 2. Update Stock Receiving Draft header only (keep items omitted)
+        $responseHeaderUpdate = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}", [
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-DRAFT-123-NEW',
+                'status' => 'draft',
+                'catatan' => 'Draft receiving updated header',
+            ]);
+
+        $responseHeaderUpdate->assertStatus(200)
+            ->assertJsonPath('data.catatan', 'Draft receiving updated header')
+            ->assertJsonCount(0, 'data.items');
+
+        // 3. Update Stock Receiving Draft and add items
+        $responseAddItems = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}", [
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-DRAFT-123-NEW',
+                'status' => 'draft',
+                'catatan' => 'Draft receiving with items now',
+                'items' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'kuantitas' => 15,
+                        'harga_beli' => 29000,
+                    ]
+                ]
+            ]);
+
+        $responseAddItems->assertStatus(200)
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.product_id', $this->product->id);
+    }
 }
