@@ -20,7 +20,8 @@ class PurchaseReturnRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'stock_receiving_id' => 'nullable|exists:stock_receivings,id',
+            'stock_receiving_id' => 'required_without:receiving_id|exists:stock_receivings,id',
+            'receiving_id' => 'required_without:stock_receiving_id|exists:stock_receivings,id',
             'supplier_id' => 'required|exists:suppliers,id',
             'tanggal_retur' => 'required|date',
             'catatan' => 'nullable|string',
@@ -28,6 +29,7 @@ class PurchaseReturnRequest extends FormRequest
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.kuantitas' => 'required|integer|min:1',
             'items.*.harga_beli' => 'required|integer|min:0',
+            'items.*.alasan' => 'nullable|string|max:50',
         ];
     }
 }

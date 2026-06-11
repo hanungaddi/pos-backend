@@ -18,6 +18,8 @@ class PurchaseReturn extends Model
         'supplier_id',
         'tanggal_retur',
         'total_nominal',
+        'resolution_type',
+        'catatan_penyelesaian',
         'catatan',
         'status',
         'user_id',

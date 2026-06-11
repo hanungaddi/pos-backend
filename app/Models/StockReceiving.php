@@ -18,6 +18,7 @@ class StockReceiving extends Model
         'supplier',
         'supplier_id',
         'nomor_faktur',
+        'tanggal_terima',
         'catatan',
         'user_id',
         'status',
@@ -33,6 +34,7 @@ class StockReceiving extends Model
             'supplier_id' => 'integer',
             'user_id' => 'integer',
             'nilai_faktur' => 'integer',
+            'tanggal_terima' => 'date',
         ];
     }
 

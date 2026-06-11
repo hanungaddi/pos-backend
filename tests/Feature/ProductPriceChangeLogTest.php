@@ -65,7 +65,13 @@ class ProductPriceChangeLogTest extends TestCase
         $response = $this->actingAs($this->managerUser, 'sanctum')
             ->postJson('/api/v1/purchase/receiving', [
                 'supplier' => 'PT Test Supplier',
-                'status' => 'completed',
+            ]);
+
+        $response->assertStatus(201);
+        $receivingId = $response->json('data.id');
+
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$receivingId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -75,10 +81,11 @@ class ProductPriceChangeLogTest extends TestCase
                         'harga_jual_baru' => 15000,
                     ]
                 ]
-            ]);
+            ])->assertStatus(200);
 
-        $response->assertStatus(201);
-        $receivingId = $response->json('data.id');
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$receivingId}/complete")
+            ->assertStatus(200);
 
         $this->assertDatabaseHas('product_price_logs', [
             'product_id' => $this->product->id,

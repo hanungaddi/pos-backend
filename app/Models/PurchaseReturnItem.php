@@ -15,6 +15,7 @@ class PurchaseReturnItem extends Model
         'product_id',
         'kuantitas',
         'harga_beli',
+        'alasan',
     ];
 
     protected function casts(): array

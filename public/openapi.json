@@ -3256,7 +3256,7 @@
                 "tags": [
                     "Purchase Orders"
                 ],
-                "summary": "Update draft purchase order",
+                "summary": "Update draft purchase order (header only)",
                 "security": [
                     {
                         "BearerAuth": []
@@ -3392,6 +3392,80 @@
                 }
             }
         },
+        "/api/v1/purchase/order/{id}/items": {
+            "put": {
+                "tags": [
+                    "Purchase Orders"
+                ],
+                "summary": "Update items of draft purchase order",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "items"
+                                ],
+                                "properties": {
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "product_id",
+                                                "kuantitas",
+                                                "harga_estimasi"
+                                            ],
+                                            "properties": {
+                                                "product_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "kuantitas": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "harga_estimasi": {
+                                                    "type": "integer",
+                                                    "example": 25000
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Purchase Order items updated."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    },
+                    "422": {
+                        "description": "Validation error."
+                    }
+                }
+            }
+        },
         "/api/v1/purchase/receiving": {
             "get": {
                 "tags": [
@@ -3499,7 +3573,7 @@
                 "tags": [
                     "Purchase Receiving"
                 ],
-                "summary": "Update / finalize receiving (flat prefix)",
+                "summary": "Update draft stock receiving (header only) (flat prefix)",
                 "security": [
                     {
                         "BearerAuth": []
@@ -3560,6 +3634,95 @@
                     },
                     "404": {
                         "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/receiving/{id}/items": {
+            "put": {
+                "tags": [
+                    "Purchase Receiving"
+                ],
+                "summary": "Update items of draft stock receiving",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "items"
+                                ],
+                                "properties": {
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "product_id",
+                                                "kuantitas",
+                                                "harga_beli"
+                                            ],
+                                            "properties": {
+                                                "product_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "kuantitas": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "example": 15
+                                                },
+                                                "harga_beli": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "example": 29000
+                                                },
+                                                "update_harga_jual": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "harga_jual_baru": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "example": 35000
+                                                },
+                                                "margin_baru": {
+                                                    "type": "number",
+                                                    "example": 20.7
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Receiving items updated."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    },
+                    "422": {
+                        "description": "Validation error."
                     }
                 }
             }
@@ -4112,7 +4275,18 @@
                                         "type": "string",
                                         "enum": [
                                             "refund",
-                                            "credit"
+                                            "credit",
+                                            "credit_note",
+                                            "exchange"
+                                        ]
+                                    },
+                                    "resolution_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "refund",
+                                            "credit",
+                                            "credit_note",
+                                            "exchange"
                                         ]
                                     },
                                     "cash_account_id": {
@@ -4124,6 +4298,10 @@
                                         "type": "integer",
                                         "nullable": true,
                                         "example": 1
+                                    },
+                                    "catatan_penyelesaian": {
+                                        "type": "string",
+                                        "nullable": true
                                     }
                                 }
                             }
@@ -4139,6 +4317,283 @@
                     },
                     "422": {
                         "description": "Validation error."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/order/outstanding": {
+            "get": {
+                "tags": [
+                    "Purchase Orders"
+                ],
+                "summary": "List outstanding purchase orders",
+                "description": "Lists purchase orders in 'ordered' or 'partially_received' status.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "supplier_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of outstanding purchase orders."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/order/{id}/receivings": {
+            "get": {
+                "tags": [
+                    "Purchase Orders"
+                ],
+                "summary": "List receivings linked to purchase order",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of receiving notes."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/receiving/{id}/complete": {
+            "post": {
+                "tags": [
+                    "Purchase Receiving"
+                ],
+                "summary": "Complete a draft receiving note",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Receiving note finalized."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    },
+                    "422": {
+                        "description": "Validation error (no items, or already completed)."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/receiving/scan": {
+            "post": {
+                "tags": [
+                    "Purchase Receiving"
+                ],
+                "summary": "Scan product barcode for receiving note",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "barcode"
+                                ],
+                                "properties": {
+                                    "barcode": {
+                                        "type": "string"
+                                    },
+                                    "purchase_order_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Product details and PO statistics retrieved."
+                    },
+                    "404": {
+                        "description": "Product not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/payment/outstanding": {
+            "get": {
+                "tags": [
+                    "Purchase Payments"
+                ],
+                "summary": "List outstanding invoices needing payment",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "supplier_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of completed receiving notes with unpaid/partial status."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/receiving/{id}/payment-summary": {
+            "get": {
+                "tags": [
+                    "Purchase Payments"
+                ],
+                "summary": "Get payment summary details of receiving note",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Total invoice, paid amount, remaining debt, and payments log."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/receiving/{id}/returnable-items": {
+            "get": {
+                "tags": [
+                    "Purchase Returns"
+                ],
+                "summary": "Get list of returnable items for a receiving note",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of received items with their remaining returnable quantities."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/purchase/return/scan": {
+            "post": {
+                "tags": [
+                    "Purchase Returns"
+                ],
+                "summary": "Scan product barcode for return item validation",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "barcode",
+                                    "stock_receiving_id"
+                                ],
+                                "properties": {
+                                    "barcode": {
+                                        "type": "string"
+                                    },
+                                    "stock_receiving_id": {
+                                        "type": "integer"
+                                    },
+                                    "receiving_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Product details and maximum returnable quantity."
+                    },
+                    "404": {
+                        "description": "Product not found."
+                    },
+                    "422": {
+                        "description": "Product not registered in receiving note."
                     }
                 }
             }
@@ -5304,6 +5759,18 @@
                         "type": "integer",
                         "example": 4000
                     },
+                    "kuantitas_po": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "kuantitas_diterima_po": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "sisa_belum_diterima_po": {
+                        "type": "integer",
+                        "example": 10
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time"
@@ -5317,6 +5784,14 @@
             "StockReceivingCreate": {
                 "type": "object",
                 "properties": {
+                    "purchase_order_id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "supplier_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
                     "supplier": {
                         "type": "string",
                         "maxLength": 255,
@@ -5327,49 +5802,35 @@
                         "maxLength": 255,
                         "example": "INV/12345"
                     },
+                    "tanggal_terima": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-06-11"
+                    },
                     "catatan": {
                         "type": "string",
                         "example": "Barang masuk rutin"
                     },
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "required": [
-                                "product_id",
-                                "kuantitas",
-                                "harga_beli"
-                            ],
-                            "properties": {
-                                "product_id": {
-                                    "type": "integer",
-                                    "example": 1
-                                },
-                                "kuantitas": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "example": 10
-                                },
-                                "harga_beli": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "example": 4000
-                                },
-                                "update_harga_jual": {
-                                    "type": "boolean",
-                                    "example": false
-                                },
-                                "harga_jual_baru": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "example": 5000
-                                },
-                                "margin_baru": {
-                                    "type": "number",
-                                    "example": 25
-                                }
-                            }
-                        }
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "draft",
+                            "completed"
+                        ],
+                        "example": "draft"
+                    },
+                    "nilai_faktur": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "example": 150000
+                    },
+                    "status_pembayaran": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "paid"
+                        ],
+                        "example": "pending"
                     }
                 }
             },
@@ -5804,31 +6265,6 @@
                     "catatan": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "required": [
-                                "product_id",
-                                "kuantitas",
-                                "harga_estimasi"
-                            ],
-                            "properties": {
-                                "product_id": {
-                                    "type": "integer",
-                                    "example": 1
-                                },
-                                "kuantitas": {
-                                    "type": "integer",
-                                    "example": 20
-                                },
-                                "harga_estimasi": {
-                                    "type": "integer",
-                                    "example": 25000
-                                }
-                            }
-                        }
                     }
                 }
             },

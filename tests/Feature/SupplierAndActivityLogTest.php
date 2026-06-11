@@ -150,13 +150,6 @@ class SupplierAndActivityLogTest extends TestCase
                 'status' => 'draft',
                 'nilai_faktur' => 500000,
                 'status_pembayaran' => 'pending',
-                'items' => [
-                    [
-                        'product_id' => $this->product->id,
-                        'kuantitas' => 10,
-                        'harga_beli' => 50000,
-                    ]
-                ]
             ]);
 
         $response->assertStatus(201)
@@ -165,6 +158,18 @@ class SupplierAndActivityLogTest extends TestCase
             ->assertJsonPath('data.status_pembayaran', 'pending');
 
         $recId = $response->json('data.id');
+
+        // Add items to the draft receiving note
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$recId}/items", [
+                'items' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'kuantitas' => 10,
+                        'harga_beli' => 50000,
+                    ]
+                ]
+            ])->assertStatus(200);
 
         // Verify stock is NOT updated
         $this->assertEquals(10, $this->product->fresh()->stok);
@@ -175,24 +180,22 @@ class SupplierAndActivityLogTest extends TestCase
             'user_id' => $this->managerUser->id,
         ]);
 
-        // 2. Finalize receiving draft
-        $response = $this->actingAs($this->managerUser, 'sanctum')
+        // 2. Update receiving draft header
+        $responseHeader = $this->actingAs($this->managerUser, 'sanctum')
             ->putJson("/api/v1/purchase/receiving/{$recId}", [
                 'supplier_id' => $supplier->id,
                 'supplier' => $supplier->nama,
                 'nomor_faktur' => 'INV-DRAFT-001',
                 'catatan' => 'Penerimaan Pertama (Final)',
-                'status' => 'completed',
+                'status' => 'draft',
                 'nilai_faktur' => 500000,
                 'status_pembayaran' => 'pending',
-                'items' => [
-                    [
-                        'product_id' => $this->product->id,
-                        'kuantitas' => 10,
-                        'harga_beli' => 50000,
-                    ]
-                ]
             ]);
+        $responseHeader->assertStatus(200);
+
+        // Finalize receiving draft
+        $response = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$recId}/complete");
 
         $response->assertStatus(200)
             ->assertJsonPath('data.status', 'completed');

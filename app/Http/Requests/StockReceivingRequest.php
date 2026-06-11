@@ -18,17 +18,11 @@ class StockReceivingRequest extends FormRequest
             'supplier' => ['nullable', 'string', 'max:255'],
             'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
             'nomor_faktur' => ['nullable', 'string', 'max:255'],
+            'tanggal_terima' => ['nullable', 'date'],
             'catatan' => ['nullable', 'string'],
             'status' => ['nullable', 'string', 'in:draft,completed'],
             'nilai_faktur' => ['nullable', 'integer', 'min:0'],
             'status_pembayaran' => ['nullable', 'string', 'in:pending,paid'],
-            'items' => ['nullable', 'array'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.kuantitas' => ['required', 'integer', 'min:1'],
-            'items.*.harga_beli' => ['required', 'integer', 'min:0'],
-            'items.*.update_harga_jual' => ['nullable', 'boolean'],
-            'items.*.harga_jual_baru' => ['nullable', 'integer', 'min:0'],
-            'items.*.margin_baru' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 }

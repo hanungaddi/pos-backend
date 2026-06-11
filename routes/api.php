@@ -177,51 +177,96 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum'])->prefix('purchase')->group(function () {
         // 1. Purchase Orders (Pemesanan)
         Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('order/outstanding', [PurchaseOrderController::class, 'outstanding']);
+            Route::get('orders/outstanding', [PurchaseOrderController::class, 'outstanding']);
+            Route::get('order/{id}/receivings', [PurchaseOrderController::class, 'receivings']);
+            Route::get('orders/{id}/receivings', [PurchaseOrderController::class, 'receivings']);
             Route::get('order', [PurchaseOrderController::class, 'index']);
+            Route::get('orders', [PurchaseOrderController::class, 'index']);
             Route::get('order/{id}', [PurchaseOrderController::class, 'show']);
+            Route::get('orders/{id}', [PurchaseOrderController::class, 'show']);
         });
         Route::middleware(['permission:manage_purchase'])->group(function () {
             Route::post('order', [PurchaseOrderController::class, 'store']);
+            Route::post('orders', [PurchaseOrderController::class, 'store']);
             Route::put('order/{id}', [PurchaseOrderController::class, 'update']);
+            Route::put('orders/{id}', [PurchaseOrderController::class, 'update']);
             Route::delete('order/{id}', [PurchaseOrderController::class, 'destroy']);
+            Route::delete('orders/{id}', [PurchaseOrderController::class, 'destroy']);
             Route::post('order/{id}/finalize', [PurchaseOrderController::class, 'finalize']);
+            Route::post('orders/{id}/finalize', [PurchaseOrderController::class, 'finalize']);
             Route::post('order/{id}/cancel', [PurchaseOrderController::class, 'cancel']);
+            Route::post('orders/{id}/cancel', [PurchaseOrderController::class, 'cancel']);
+            Route::put('order/{id}/items', [PurchaseOrderController::class, 'updateItems']);
+            Route::put('orders/{id}/items', [PurchaseOrderController::class, 'updateItems']);
         });
 
         // 2. Receivings (Penerimaan)
         Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
             Route::get('receiving', [StockReceivingController::class, 'index']);
+            Route::get('receivings', [StockReceivingController::class, 'index']);
             Route::get('receiving/{id}', [StockReceivingController::class, 'show']);
+            Route::get('receivings/{id}', [StockReceivingController::class, 'show']);
         });
         Route::middleware(['permission:manage_purchase'])->group(function () {
             Route::post('receiving', [StockReceivingController::class, 'store']);
+            Route::post('receivings', [StockReceivingController::class, 'store']);
             Route::put('receiving/{id}', [StockReceivingController::class, 'update']);
+            Route::put('receivings/{id}', [StockReceivingController::class, 'update']);
             Route::delete('receiving/{id}', [StockReceivingController::class, 'destroy']);
+            Route::delete('receivings/{id}', [StockReceivingController::class, 'destroy']);
             Route::patch('receiving/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
+            Route::patch('receivings/{id}/payment-status', [StockReceivingController::class, 'updatePaymentStatus']);
+            Route::post('receiving/{id}/complete', [StockReceivingController::class, 'complete']);
+            Route::post('receivings/{id}/complete', [StockReceivingController::class, 'complete']);
             Route::post('receiving/compare-prices', [StockReceivingController::class, 'comparePrices']);
+            Route::post('receivings/compare-prices', [StockReceivingController::class, 'comparePrices']);
+            Route::post('receiving/scan', [StockReceivingController::class, 'scan']);
+            Route::post('receivings/scan', [StockReceivingController::class, 'scan']);
+            Route::put('receiving/{id}/items', [StockReceivingController::class, 'updateItems']);
+            Route::put('receivings/{id}/items', [StockReceivingController::class, 'updateItems']);
         });
 
         // 3. Payments (Pembayaran)
         Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('payment/outstanding', [ReceivingPaymentController::class, 'outstanding']);
+            Route::get('payments/outstanding', [ReceivingPaymentController::class, 'outstanding']);
+            Route::get('receiving/{id}/payment-summary', [ReceivingPaymentController::class, 'paymentSummary']);
+            Route::get('receivings/{id}/payment-summary', [ReceivingPaymentController::class, 'paymentSummary']);
             Route::get('payment', [ReceivingPaymentController::class, 'index']);
+            Route::get('payments', [ReceivingPaymentController::class, 'index']);
             Route::get('payment/{id}', [ReceivingPaymentController::class, 'show']);
+            Route::get('payments/{id}', [ReceivingPaymentController::class, 'show']);
         });
         Route::middleware(['permission:manage_purchase'])->group(function () {
             Route::post('payment', [ReceivingPaymentController::class, 'store']);
+            Route::post('payments', [ReceivingPaymentController::class, 'store']);
             Route::put('payment/{id}', [ReceivingPaymentController::class, 'update']);
+            Route::put('payments/{id}', [ReceivingPaymentController::class, 'update']);
             Route::delete('payment/{id}', [ReceivingPaymentController::class, 'destroy']);
+            Route::delete('payments/{id}', [ReceivingPaymentController::class, 'destroy']);
         });
 
         // 4. Returns (Return)
         Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
+            Route::get('receiving/{id}/returnable-items', [PurchaseReturnController::class, 'returnableItems']);
+            Route::get('receivings/{id}/returnable-items', [PurchaseReturnController::class, 'returnableItems']);
             Route::get('return', [PurchaseReturnController::class, 'index']);
+            Route::get('returns', [PurchaseReturnController::class, 'index']);
             Route::get('return/{id}', [PurchaseReturnController::class, 'show']);
+            Route::get('returns/{id}', [PurchaseReturnController::class, 'show']);
         });
         Route::middleware(['permission:manage_purchase'])->group(function () {
             Route::post('return', [PurchaseReturnController::class, 'store']);
+            Route::post('returns', [PurchaseReturnController::class, 'store']);
             Route::put('return/{id}', [PurchaseReturnController::class, 'update']);
+            Route::put('returns/{id}', [PurchaseReturnController::class, 'update']);
             Route::delete('return/{id}', [PurchaseReturnController::class, 'destroy']);
+            Route::delete('returns/{id}', [PurchaseReturnController::class, 'destroy']);
             Route::post('return/{id}/finalize', [PurchaseReturnController::class, 'finalize']);
+            Route::post('returns/{id}/finalize', [PurchaseReturnController::class, 'finalize']);
+            Route::post('return/scan', [PurchaseReturnController::class, 'scan']);
+            Route::post('returns/scan', [PurchaseReturnController::class, 'scan']);
         });
     });
 });

@@ -69,6 +69,17 @@ class PurchaseMenuFlowTest extends TestCase
                 'supplier_id' => $this->supplier->id,
                 'tanggal_po' => '2026-06-10',
                 'catatan' => 'Pesanan minyak goreng',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.nilai_estimasi', 0);
+
+        $poId = $response->json('data.id');
+
+        // Add items to PO Draft
+        $responseAdd = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/order/{$poId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -78,11 +89,8 @@ class PurchaseMenuFlowTest extends TestCase
                 ]
             ]);
 
-        $response->assertStatus(201)
-            ->assertJsonPath('data.status', 'draft')
+        $responseAdd->assertStatus(200)
             ->assertJsonPath('data.nilai_estimasi', 560000);
-
-        $poId = $response->json('data.id');
 
         // 2. Update PO Draft
         $responseUpdate = $this->actingAs($this->managerUser, 'sanctum')
@@ -90,6 +98,13 @@ class PurchaseMenuFlowTest extends TestCase
                 'supplier_id' => $this->supplier->id,
                 'tanggal_po' => '2026-06-10',
                 'catatan' => 'Pesanan minyak goreng update',
+            ]);
+
+        $responseUpdate->assertStatus(200);
+
+        // Update items separately
+        $responseUpdateItems = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/order/{$poId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -99,7 +114,7 @@ class PurchaseMenuFlowTest extends TestCase
                 ]
             ]);
 
-        $responseUpdate->assertStatus(200)
+        $responseUpdateItems->assertStatus(200)
             ->assertJsonPath('data.nilai_estimasi', 840000);
 
         // 3. Finalize PO (status -> ordered)
@@ -135,14 +150,21 @@ class PurchaseMenuFlowTest extends TestCase
             'harga_estimasi' => 30000,
         ]);
 
-        // 2. Create Stock Receiving referencing PO
+        // 2. Create Stock Receiving referencing PO (as draft first)
         $responseReceiving = $this->actingAs($this->managerUser, 'sanctum')
             ->postJson('/api/v1/purchase/receiving', [
                 'purchase_order_id' => $po->id,
                 'supplier_id' => $this->supplier->id,
                 'nomor_faktur' => 'INV-999',
                 'nilai_faktur' => 600000,
-                'status' => 'completed',
+            ]);
+
+        $responseReceiving->assertStatus(201);
+        $rcvId = $responseReceiving->json('data.id');
+
+        // Add items to receiving note
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -151,7 +173,12 @@ class PurchaseMenuFlowTest extends TestCase
                         'update_harga_jual' => false,
                     ]
                 ]
-            ]);
+            ])->assertStatus(200);
+
+        // Complete the receiving note
+        $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId}/complete")
+            ->assertStatus(200);
 
         $responseReceiving->assertStatus(201);
 
@@ -252,6 +279,12 @@ class PurchaseMenuFlowTest extends TestCase
             'status' => 'completed',
             'status_pembayaran' => 'unpaid',
             'user_id' => $this->managerUser->id,
+        ]);
+
+        $receiving->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 10,
+            'harga_beli' => 30000,
         ]);
 
         // 1. Create Return Draft
@@ -378,11 +411,16 @@ class PurchaseMenuFlowTest extends TestCase
             ->assertJsonCount(0, 'data.items');
 
         // 3. Update PO Draft and add items
-        $responseAddItems = $this->actingAs($this->managerUser, 'sanctum')
+        $responseHeaderUpdate2 = $this->actingAs($this->managerUser, 'sanctum')
             ->putJson("/api/v1/purchase/order/{$poId}", [
                 'supplier_id' => $this->supplier->id,
                 'tanggal_po' => '2026-06-11',
                 'catatan' => 'Draft PO with items now',
+            ]);
+        $responseHeaderUpdate2->assertStatus(200);
+
+        $responseAddItems = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/order/{$poId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -429,12 +467,17 @@ class PurchaseMenuFlowTest extends TestCase
             ->assertJsonCount(0, 'data.items');
 
         // 3. Update Stock Receiving Draft and add items
-        $responseAddItems = $this->actingAs($this->managerUser, 'sanctum')
+        $responseHeaderUpdate2 = $this->actingAs($this->managerUser, 'sanctum')
             ->putJson("/api/v1/purchase/receiving/{$rcvId}", [
                 'supplier_id' => $this->supplier->id,
                 'nomor_faktur' => 'INV-DRAFT-123-NEW',
                 'status' => 'draft',
                 'catatan' => 'Draft receiving with items now',
+            ]);
+        $responseHeaderUpdate2->assertStatus(200);
+
+        $responseAddItems = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
                 'items' => [
                     [
                         'product_id' => $this->product->id,
@@ -447,5 +490,403 @@ class PurchaseMenuFlowTest extends TestCase
         $responseAddItems->assertStatus(200)
             ->assertJsonCount(1, 'data.items')
             ->assertJsonPath('data.items.0.product_id', $this->product->id);
+    }
+
+    public function test_new_purchase_flow_enhancements(): void
+    {
+        // 1. Setup a PO
+        $po = PurchaseOrder::create([
+            'nomor_po' => 'PO-NEW-ENHANCE',
+            'supplier_id' => $this->supplier->id,
+            'tanggal_po' => '2026-06-11',
+            'status' => 'ordered',
+            'nilai_estimasi' => 300000,
+            'user_id' => $this->managerUser->id,
+        ]);
+        $poItem = $po->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 10,
+            'harga_estimasi' => 30000,
+        ]);
+
+        // Add barcode to product
+        $this->product->update(['barcode' => '8999999999999']);
+
+        // Test scan product on receiving
+        $scanResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/receiving/scan', [
+                'barcode' => '8999999999999',
+                'purchase_order_id' => $po->id,
+            ]);
+        $scanResponse->assertStatus(200)
+            ->assertJsonPath('product.id', $this->product->id)
+            ->assertJsonPath('po_item.kuantitas_dipesan', 10);
+
+        // 2. Create Stock Receiving Draft
+        $receiving = StockReceiving::create([
+            'nomor_penerimaan' => 'RCV-NEW-ENHANCE',
+            'purchase_order_id' => $po->id,
+            'supplier_id' => $this->supplier->id,
+            'nomor_faktur' => 'INV-NEW-ENHANCE',
+            'nilai_faktur' => 300000,
+            'status' => 'completed',
+            'status_pembayaran' => 'unpaid',
+            'user_id' => $this->managerUser->id,
+        ]);
+        $rcvItem = $receiving->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 10,
+            'harga_beli' => 30000,
+        ]);
+
+        // 3. Test outstanding payment list
+        $outstandingResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson('/api/v1/purchase/payment/outstanding');
+        $outstandingResponse->assertStatus(200)
+            ->assertJsonFragment(['nomor_penerimaan' => 'RCV-NEW-ENHANCE']);
+
+        // 4. Test payment summary before payment
+        $summaryResponse1 = $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson("/api/v1/purchase/receiving/{$receiving->id}/payment-summary");
+        $summaryResponse1->assertStatus(200)
+            ->assertJsonPath('total_faktur', 300000)
+            ->assertJsonPath('total_dibayar', 0)
+            ->assertJsonPath('sisa_hutang', 300000)
+            ->assertJsonPath('status_pembayaran', 'pending');
+
+        // 5. Test pay exceeding sisa_hutang should fail
+        $payFailResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/payment', [
+                'stock_receiving_id' => $receiving->id,
+                'nominal' => 350000, // exceeds 300k
+                'tanggal_bayar' => '2026-06-11',
+                'cash_account_id' => $this->cashAccount->id,
+                'metode_pembayaran' => 'cash',
+            ]);
+        $payFailResponse->assertStatus(422);
+
+        // 6. Pay partially
+        $payResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/payment', [
+                'stock_receiving_id' => $receiving->id,
+                'nominal' => 100000,
+                'tanggal_bayar' => '2026-06-11',
+                'cash_account_id' => $this->cashAccount->id,
+                'metode_pembayaran' => 'cash',
+            ]);
+        $payResponse->assertStatus(201);
+
+        // Test payment summary after partial payment
+        $summaryResponse2 = $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson("/api/v1/purchase/receiving/{$receiving->id}/payment-summary");
+        $summaryResponse2->assertStatus(200)
+            ->assertJsonPath('total_dibayar', 100000)
+            ->assertJsonPath('sisa_hutang', 200000)
+            ->assertJsonPath('status_pembayaran', 'partially_paid');
+
+        // 7. Test returnable items endpoint
+        $returnableResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->getJson("/api/v1/purchase/receiving/{$receiving->id}/returnable-items");
+        $returnableResponse->assertStatus(200)
+            ->assertJsonPath('data.0.product_id', $this->product->id)
+            ->assertJsonPath('data.0.kuantitas_sisa', 10);
+
+        // Test scan product on return
+        $scanReturnResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/return/scan', [
+                'barcode' => '8999999999999',
+                'stock_receiving_id' => $receiving->id,
+            ]);
+        $scanReturnResponse->assertStatus(200)
+            ->assertJsonPath('product.id', $this->product->id)
+            ->assertJsonPath('kuantitas_sisa', 10);
+
+        // 8. Test finalize return with credit_note resolution
+        $returnCredit = PurchaseReturn::create([
+            'nomor_retur' => 'PRT-CREDIT-NOTE-ENH',
+            'stock_receiving_id' => $receiving->id,
+            'supplier_id' => $this->supplier->id,
+            'tanggal_retur' => '2026-06-11',
+            'total_nominal' => 60000, // 2 items * 30000
+            'status' => 'draft',
+            'user_id' => $this->managerUser->id,
+        ]);
+        $returnCredit->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 2,
+            'harga_beli' => 30000,
+            'alasan' => 'damaged',
+        ]);
+
+        $finalizeCreditResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/return/{$returnCredit->id}/finalize", [
+                'resolution_type' => 'credit_note',
+                'catatan_penyelesaian' => 'Credit note added to supplier credits',
+            ]);
+        $finalizeCreditResponse->assertStatus(200);
+
+        // Assert SupplierCredit record created
+        $this->assertDatabaseHas('supplier_credits', [
+            'supplier_id' => $this->supplier->id,
+            'amount' => 60000,
+        ]);
+
+        // 9. Test finalize return with exchange resolution
+        $returnExchange = PurchaseReturn::create([
+            'nomor_retur' => 'PRT-EXCHANGE-ENH',
+            'stock_receiving_id' => $receiving->id,
+            'supplier_id' => $this->supplier->id,
+            'tanggal_retur' => '2026-06-11',
+            'total_nominal' => 90000, // 3 items * 30000
+            'status' => 'draft',
+            'user_id' => $this->managerUser->id,
+        ]);
+        $returnExchange->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 3,
+            'harga_beli' => 30000,
+            'alasan' => 'expired',
+        ]);
+
+        $finalizeExchangeResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/return/{$returnExchange->id}/finalize", [
+                'resolution_type' => 'exchange',
+                'catatan_penyelesaian' => 'Exchange items draft created',
+            ]);
+        $finalizeExchangeResponse->assertStatus(200);
+
+        // Assert StockReceiving draft created with exchange items
+        $this->assertDatabaseHas('stock_receivings', [
+            'supplier_id' => $this->supplier->id,
+            'nomor_faktur' => 'EXCH-PRT-EXCHANGE-ENH',
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_receiving_note_po_quantity_details(): void
+    {
+        // 1. Create a PO with 2 items
+        $product2 = Product::create([
+            'nama' => 'Beras 5kg',
+            'harga_beli' => 60000,
+            'harga_jual' => 70000,
+            'margin' => 16.67,
+            'stok' => 10,
+        ]);
+
+        $po = PurchaseOrder::create([
+            'nomor_po' => 'PO-QTY-DETAILS',
+            'supplier_id' => $this->supplier->id,
+            'tanggal_po' => '2026-06-11',
+            'status' => 'ordered',
+            'nilai_estimasi' => 200000,
+            'user_id' => $this->managerUser->id,
+        ]);
+
+        $po->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 5,
+            'harga_estimasi' => 28000,
+            'kuantitas_diterima' => 2, // 2 already received previously
+        ]);
+
+        $po->items()->create([
+            'product_id' => $product2->id,
+            'kuantitas' => 3,
+            'harga_estimasi' => 60000,
+            'kuantitas_diterima' => 3, // fully received previously
+        ]);
+
+        // 2. Create Stock Receiving Note Draft referencing this PO
+        $response = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/receiving', [
+                'purchase_order_id' => $po->id,
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-QTY-DETAILS',
+                'nilai_faktur' => 200000,
+            ]);
+
+        $response->assertStatus(201);
+        $rcvId = $response->json('data.id');
+
+        // Assert items are automatically populated
+        $response->assertJsonCount(2, 'data.items');
+
+        // Check PO details on the first item (should have kuantitas = 3, kuantitas_po = 5, kuantitas_diterima_po = 2)
+        $item1 = collect($response->json('data.items'))->where('product_id', $this->product->id)->first();
+        $this->assertNotNull($item1);
+        $this->assertEquals(3, $item1['kuantitas']); // sisa = 5 - 2 = 3
+        $this->assertEquals(5, $item1['kuantitas_po']);
+        $this->assertEquals(2, $item1['kuantitas_diterima_po']);
+        $this->assertEquals(3, $item1['sisa_belum_diterima_po']);
+
+        // Check PO details on the second item (should have kuantitas = 0, kuantitas_po = 3, kuantitas_diterima_po = 3)
+        $item2 = collect($response->json('data.items'))->where('product_id', $product2->id)->first();
+        $this->assertNotNull($item2);
+        $this->assertEquals(0, $item2['kuantitas']); // fully received, so sisa = 0
+        $this->assertEquals(3, $item2['kuantitas_po']);
+        $this->assertEquals(3, $item2['kuantitas_diterima_po']);
+        $this->assertEquals(0, $item2['sisa_belum_diterima_po']);
+
+        // 3. Test update header (changing purchase_order_id from $po->id to null)
+        $updateResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}", [
+                'purchase_order_id' => null,
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-QTY-DETAILS-UPDATED',
+            ]);
+
+        $updateResponse->assertStatus(200);
+        // If purchase_order_id is null, it should have items reset or kept
+        $updateResponse->assertJsonCount(0, 'data.items');
+
+        // Update back to $po->id
+        $updateResponse2 = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}", [
+                'purchase_order_id' => $po->id,
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-QTY-DETAILS-UPDATED',
+            ]);
+        $updateResponse2->assertStatus(200);
+        $updateResponse2->assertJsonCount(2, 'data.items');
+
+        // 4. Test updateItems (set quantity of product 2 to 0 and product 1 to 0)
+        $updateItemsResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
+                'items' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'kuantitas' => 0, // allowed now
+                        'harga_beli' => 28000,
+                    ],
+                    [
+                        'product_id' => $product2->id,
+                        'kuantitas' => 0, // trying to receive 0 on a fully received PO item
+                        'harga_beli' => 60000,
+                    ]
+                ]
+            ]);
+        $updateItemsResponse->assertStatus(200);
+
+        // 5. Test complete on receiving note where all quantities are 0 (should fail with 422)
+        $completeFailResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId}/complete");
+        $completeFailResponse->assertStatus(422)
+            ->assertJsonFragment(['message' => 'Tidak dapat menyelesaikan penerimaan barang dengan total kuantitas 0.']);
+
+        // Update items again to have some quantity (e.g. product 1 quantity = 2)
+        $updateItemsResponse2 = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
+                'items' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'kuantitas' => 2,
+                        'harga_beli' => 28000,
+                    ],
+                    [
+                        'product_id' => $product2->id,
+                        'kuantitas' => 0,
+                        'harga_beli' => 60000,
+                    ]
+                ]
+            ]);
+        $updateItemsResponse2->assertStatus(200);
+
+        // Complete the receiving note (should succeed)
+        $completeSuccessResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId}/complete");
+        $completeSuccessResponse->assertStatus(200);
+
+        // Verify that only product 1 stock increased by 2
+        $this->assertEquals(52, $this->product->fresh()->stok); // 50 + 2
+        $this->assertEquals(10, $product2->fresh()->stok); // unchanged (10)
+
+        // Verify PO item kuantitas_diterima updated for product 1 (2 + 2 = 4)
+        $poItem1 = $po->fresh()->items()->where('product_id', $this->product->id)->first();
+        $this->assertEquals(4, $poItem1->kuantitas_diterima);
+
+        // Verify PO item kuantitas_diterima unchanged for product 2 (3)
+        $poItem2 = $po->fresh()->items()->where('product_id', $product2->id)->first();
+        $this->assertEquals(3, $poItem2->kuantitas_diterima);
+    }
+
+    public function test_receiving_note_non_po_items_flexible(): void
+    {
+        // 1. Create a PO with 1 item
+        $po = PurchaseOrder::create([
+            'nomor_po' => 'PO-FLEXIBLE-TEST',
+            'supplier_id' => $this->supplier->id,
+            'tanggal_po' => '2026-06-11',
+            'status' => 'ordered',
+            'nilai_estimasi' => 300000,
+            'user_id' => $this->managerUser->id,
+        ]);
+        $po->items()->create([
+            'product_id' => $this->product->id,
+            'kuantitas' => 10,
+            'harga_estimasi' => 30000,
+        ]);
+
+        // Create a second product not in the PO
+        $product2 = Product::create([
+            'nama' => 'Gula Pasir 1kg',
+            'harga_beli' => 12000,
+            'harga_jual' => 15000,
+            'margin' => 25.00,
+            'stok' => 20,
+        ]);
+
+        // 2. Create Stock Receiving Note Draft referencing this PO
+        $response = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson('/api/v1/purchase/receiving', [
+                'purchase_order_id' => $po->id,
+                'supplier_id' => $this->supplier->id,
+                'nomor_faktur' => 'INV-FLEX-123',
+            ]);
+        $response->assertStatus(201);
+        $rcvId = $response->json('data.id');
+
+        // 3. Update items, adding the second product (which is not in the PO)
+        $updateItemsResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->putJson("/api/v1/purchase/receiving/{$rcvId}/items", [
+                'items' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'kuantitas' => 10,
+                        'harga_beli' => 30000,
+                    ],
+                    [
+                        'product_id' => $product2->id,
+                        'kuantitas' => 5, // 5 units of product not in PO
+                        'harga_beli' => 12000,
+                    ]
+                ]
+            ]);
+
+        $updateItemsResponse->assertStatus(200);
+
+        // Verify the second product has kuantitas_po = 0 in response
+        $item2 = collect($updateItemsResponse->json('data.items'))->where('product_id', $product2->id)->first();
+        $this->assertNotNull($item2);
+        $this->assertEquals(0, $item2['kuantitas_po']);
+        $this->assertEquals(0, $item2['kuantitas_diterima_po']);
+        $this->assertEquals(0, $item2['sisa_belum_diterima_po']);
+
+        // 4. Complete the receiving note
+        $completeResponse = $this->actingAs($this->managerUser, 'sanctum')
+            ->postJson("/api/v1/purchase/receiving/{$rcvId}/complete");
+        $completeResponse->assertStatus(200);
+
+        // 5. Verify the PO now has 2 items (the second product is dynamically added)
+        $poFresh = $po->fresh();
+        $this->assertEquals(2, $poFresh->items()->count());
+
+        $newPoItem = $poFresh->items()->where('product_id', $product2->id)->first();
+        $this->assertNotNull($newPoItem);
+        $this->assertEquals(5, $newPoItem->kuantitas);
+        $this->assertEquals(5, $newPoItem->kuantitas_diterima);
+
+        // Verify PO's nilai_estimasi is updated: 300,000 + (5 * 12,000) = 360,000
+        $this->assertEquals(360000, $poFresh->nilai_estimasi);
     }
 }
