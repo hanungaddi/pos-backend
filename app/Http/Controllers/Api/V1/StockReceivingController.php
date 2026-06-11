@@ -79,69 +79,71 @@ class StockReceivingController extends Controller
                 'user_id' => $request->user()->id,
             ]);
 
-            foreach ($validated['items'] as $itemData) {
-                // Create receiving item
-                $receiving->items()->create([
-                    'product_id' => $itemData['product_id'],
-                    'kuantitas' => $itemData['kuantitas'],
-                    'harga_beli' => $itemData['harga_beli'],
-                ]);
+            if (isset($validated['items']) && is_array($validated['items'])) {
+                foreach ($validated['items'] as $itemData) {
+                    // Create receiving item
+                    $receiving->items()->create([
+                        'product_id' => $itemData['product_id'],
+                        'kuantitas' => $itemData['kuantitas'],
+                        'harga_beli' => $itemData['harga_beli'],
+                    ]);
 
-                // Only adjust stock and log movement if completed immediately
-                if ($status === 'completed') {
-                    $product = Product::where('id', $itemData['product_id'])->lockForUpdate()->first();
-                    if ($product) {
-                        $stokSebelum = $product->stok;
-                        $stokSesudah = $stokSebelum + $itemData['kuantitas'];
+                    // Only adjust stock and log movement if completed immediately
+                    if ($status === 'completed') {
+                        $product = Product::where('id', $itemData['product_id'])->lockForUpdate()->first();
+                        if ($product) {
+                            $stokSebelum = $product->stok;
+                            $stokSesudah = $stokSebelum + $itemData['kuantitas'];
 
-                        // Update product stock
-                        $product->stok = $stokSesudah;
+                            // Update product stock
+                            $product->stok = $stokSesudah;
 
-                        // Process pricing updates
-                        $product->harga_beli = $itemData['harga_beli'];
-                        
-                        // Pass details to ProductObserver
-                        $product->price_log_sumber = 'receiving';
-                        $product->price_log_referensi_id = $receiving->id;
+                            // Process pricing updates
+                            $product->harga_beli = $itemData['harga_beli'];
+                            
+                            // Pass details to ProductObserver
+                            $product->price_log_sumber = 'receiving';
+                            $product->price_log_referensi_id = $receiving->id;
 
-                        $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
-                        if ($updateHargaJual) {
-                            if (!empty($itemData['harga_jual_baru'])) {
-                                $product->harga_jual = (int)$itemData['harga_jual_baru'];
-                                $product->margin = null;
-                            } elseif (isset($itemData['margin_baru']) && $itemData['margin_baru'] !== '') {
-                                $product->margin = (float)$itemData['margin_baru'];
-                                $product->harga_jual = 0; // force recalculation
-                            } else {
-                                $product->harga_jual = 0; // force recalculation based on existing margin
+                            $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                            if ($updateHargaJual) {
+                                if (!empty($itemData['harga_jual_baru'])) {
+                                    $product->harga_jual = (int)$itemData['harga_jual_baru'];
+                                    $product->margin = null;
+                                } elseif (isset($itemData['margin_baru']) && $itemData['margin_baru'] !== '') {
+                                    $product->margin = (float)$itemData['margin_baru'];
+                                    $product->harga_jual = 0; // force recalculation
+                                } else {
+                                    $product->harga_jual = 0; // force recalculation based on existing margin
+                                }
                             }
-                        }
 
-                        $product->save();
+                            $product->save();
 
-                        // Update PO item quantity received
-                        if ($receiving->purchase_order_id) {
-                            $poItem = \App\Models\PurchaseOrderItem::where('purchase_order_id', $receiving->purchase_order_id)
-                                ->where('product_id', $product->id)
-                                ->first();
-                            if ($poItem) {
-                                $poItem->increment('kuantitas_diterima', $itemData['kuantitas']);
+                            // Update PO item quantity received
+                            if ($receiving->purchase_order_id) {
+                                $poItem = \App\Models\PurchaseOrderItem::where('purchase_order_id', $receiving->purchase_order_id)
+                                    ->where('product_id', $product->id)
+                                    ->first();
+                                if ($poItem) {
+                                    $poItem->increment('kuantitas_diterima', $itemData['kuantitas']);
+                                }
                             }
-                        }
 
-                        // Log stock movement
-                        StockMovement::create([
-                            'store_id' => $request->user()->store_id,
-                            'product_id' => $product->id,
-                            'tipe' => 'receive',
-                            'kuantitas' => $itemData['kuantitas'],
-                            'stok_sebelum' => $stokSebelum,
-                            'stok_sesudah' => $stokSesudah,
-                            'referensi_id' => $receiving->id,
-                            'referensi_tipe' => 'receiving',
-                            'alasan' => 'Penerimaan barang dari supplier',
-                            'user_id' => $request->user()->id,
-                        ]);
+                            // Log stock movement
+                            StockMovement::create([
+                                'store_id' => $request->user()->store_id,
+                                'product_id' => $product->id,
+                                'tipe' => 'receive',
+                                'kuantitas' => $itemData['kuantitas'],
+                                'stok_sebelum' => $stokSebelum,
+                                'stok_sesudah' => $stokSesudah,
+                                'referensi_id' => $receiving->id,
+                                'referensi_tipe' => 'receiving',
+                                'alasan' => 'Penerimaan barang dari supplier',
+                                'user_id' => $request->user()->id,
+                            ]);
+                        }
                     }
                 }
             }
@@ -216,72 +218,76 @@ class StockReceivingController extends Controller
                 'status' => $newStatus,
             ]);
 
-            // Rebuild items
-            $receiving->items()->delete();
+            // Rebuild items if items array is provided
+            if (array_key_exists('items', $validated)) {
+                $receiving->items()->delete();
 
-            foreach ($validated['items'] as $itemData) {
-                // Re-create items
-                $receiving->items()->create([
-                    'product_id' => $itemData['product_id'],
-                    'kuantitas' => $itemData['kuantitas'],
-                    'harga_beli' => $itemData['harga_beli'],
-                ]);
-
-                // If finalizing to completed, adjust stock and log movement
-                if ($newStatus === 'completed') {
-                    $product = Product::where('id', $itemData['product_id'])->lockForUpdate()->first();
-                    if ($product) {
-                        $stokSebelum = $product->stok;
-                        $stokSesudah = $stokSebelum + $itemData['kuantitas'];
-
-                        // Update product stock
-                        $product->stok = $stokSesudah;
-
-                        // Process pricing updates
-                        $product->harga_beli = $itemData['harga_beli'];
-                        
-                        // Pass details to ProductObserver
-                        $product->price_log_sumber = 'receiving';
-                        $product->price_log_referensi_id = $receiving->id;
-
-                        $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
-                        if ($updateHargaJual) {
-                            if (!empty($itemData['harga_jual_baru'])) {
-                                $product->harga_jual = (int)$itemData['harga_jual_baru'];
-                                $product->margin = null;
-                            } elseif (isset($itemData['margin_baru']) && $itemData['margin_baru'] !== '') {
-                                $product->margin = (float)$itemData['margin_baru'];
-                                $product->harga_jual = 0; // force recalculation
-                            } else {
-                                $product->harga_jual = 0; // force recalculation based on existing margin
-                            }
-                        }
-
-                        $product->save();
-
-                        // Update PO item quantity received
-                        if ($receiving->purchase_order_id) {
-                            $poItem = \App\Models\PurchaseOrderItem::where('purchase_order_id', $receiving->purchase_order_id)
-                                ->where('product_id', $product->id)
-                                ->first();
-                            if ($poItem) {
-                                $poItem->increment('kuantitas_diterima', $itemData['kuantitas']);
-                            }
-                        }
-
-                        // Log stock movement
-                        StockMovement::create([
-                            'store_id' => $request->user()->store_id,
-                            'product_id' => $product->id,
-                            'tipe' => 'receive',
+                if (is_array($validated['items'])) {
+                    foreach ($validated['items'] as $itemData) {
+                        // Re-create items
+                        $receiving->items()->create([
+                            'product_id' => $itemData['product_id'],
                             'kuantitas' => $itemData['kuantitas'],
-                            'stok_sebelum' => $stokSebelum,
-                            'stok_sesudah' => $stokSesudah,
-                            'referensi_id' => $receiving->id,
-                            'referensi_tipe' => 'receiving',
-                            'alasan' => 'Penerimaan barang dari supplier (finalisasi)',
-                            'user_id' => $request->user()->id,
+                            'harga_beli' => $itemData['harga_beli'],
                         ]);
+
+                        // If finalizing to completed, adjust stock and log movement
+                        if ($newStatus === 'completed') {
+                            $product = Product::where('id', $itemData['product_id'])->lockForUpdate()->first();
+                            if ($product) {
+                                $stokSebelum = $product->stok;
+                                $stokSesudah = $stokSebelum + $itemData['kuantitas'];
+
+                                // Update product stock
+                                $product->stok = $stokSesudah;
+
+                                // Process pricing updates
+                                $product->harga_beli = $itemData['harga_beli'];
+                                
+                                // Pass details to ProductObserver
+                                $product->price_log_sumber = 'receiving';
+                                $product->price_log_referensi_id = $receiving->id;
+
+                                $updateHargaJual = filter_var($itemData['update_harga_jual'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                                if ($updateHargaJual) {
+                                    if (!empty($itemData['harga_jual_baru'])) {
+                                        $product->harga_jual = (int)$itemData['harga_jual_baru'];
+                                        $product->margin = null;
+                                    } elseif (isset($itemData['margin_baru']) && $itemData['margin_baru'] !== '') {
+                                        $product->margin = (float)$itemData['margin_baru'];
+                                        $product->harga_jual = 0; // force recalculation
+                                    } else {
+                                        $product->harga_jual = 0; // force recalculation based on existing margin
+                                    }
+                                }
+
+                                $product->save();
+
+                                // Update PO item quantity received
+                                if ($receiving->purchase_order_id) {
+                                    $poItem = \App\Models\PurchaseOrderItem::where('purchase_order_id', $receiving->purchase_order_id)
+                                        ->where('product_id', $product->id)
+                                        ->first();
+                                    if ($poItem) {
+                                        $poItem->increment('kuantitas_diterima', $itemData['kuantitas']);
+                                    }
+                                }
+
+                                // Log stock movement
+                                StockMovement::create([
+                                    'store_id' => $request->user()->store_id,
+                                    'product_id' => $product->id,
+                                    'tipe' => 'receive',
+                                    'kuantitas' => $itemData['kuantitas'],
+                                    'stok_sebelum' => $stokSebelum,
+                                    'stok_sesudah' => $stokSesudah,
+                                    'referensi_id' => $receiving->id,
+                                    'referensi_tipe' => 'receiving',
+                                    'alasan' => 'Penerimaan barang dari supplier (finalisasi)',
+                                    'user_id' => $request->user()->id,
+                                ]);
+                            }
+                        }
                     }
                 }
             }

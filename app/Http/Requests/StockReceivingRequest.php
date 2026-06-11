@@ -22,7 +22,7 @@ class StockReceivingRequest extends FormRequest
             'status' => ['nullable', 'string', 'in:draft,completed'],
             'nilai_faktur' => ['nullable', 'integer', 'min:0'],
             'status_pembayaran' => ['nullable', 'string', 'in:pending,paid'],
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.kuantitas' => ['required', 'integer', 'min:1'],
             'items.*.harga_beli' => ['required', 'integer', 'min:0'],
