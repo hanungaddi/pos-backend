@@ -3114,6 +3114,127 @@
                 }
             }
         },
+        "/api/v1/template-product/download": {
+            "get": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Download product template",
+                "description": "Download Excel template file for bulk product import. Access is restricted to users with 'manage_products' permission.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Template file downloaded successfully.",
+                        "content": {
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated."
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions."
+                    }
+                }
+            }
+        },
+        "/api/v1/template-product/import": {
+            "post": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Import products from template",
+                "description": "Bulk import products from uploaded Excel template file. Access is restricted to users with 'manage_products' permission.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "description": "Excel file (.xlsx) containing product data"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Products imported successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Produk berhasil diimpor."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "success_count": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "failed_count": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "errors": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "row": {
+                                                                "type": "integer"
+                                                            },
+                                                            "message": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated."
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions."
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
         "/api/v1/purchase/order": {
             "get": {
                 "tags": [
