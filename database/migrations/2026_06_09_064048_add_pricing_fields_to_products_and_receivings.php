@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         Schema::table('products', function (Blueprint $table) {
-            $table->decimal('margin', 5, 2)->default(0.00)->after('harga_jual');
+            $table->decimal('margin', 8, 2)->default(0.00)->after('harga_jual');
         });
 
         Schema::table('stock_receiving_items', function (Blueprint $table) {

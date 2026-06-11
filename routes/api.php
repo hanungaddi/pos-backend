@@ -86,6 +86,10 @@ Route::prefix('v1')->group(function () {
         // Manage Products
         Route::middleware(['permission:manage_products'])->group(function () {
             Route::post('products', [ProductController::class, 'store']);
+            //Download Template Master Product & Import Master
+            Route::get('template-product/download', [ProductController::class, 'downloadTemplate']);
+            Route::post('template-product/import', [ProductController::class, 'importTemplate']);
+
             Route::put('products/{product}', [ProductController::class, 'update']);
             Route::delete('products/{product}', [ProductController::class, 'destroy']);
             Route::patch('products/{product}/status', [ProductController::class, 'changeStatus']);

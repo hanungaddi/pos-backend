@@ -10,6 +10,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use App\Exports\TemplateProduct;
+use App\Imports\ProductImport;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
 class ProductController extends Controller
 {
@@ -368,5 +372,25 @@ class ProductController extends Controller
             ->paginate($request->integer('per_page', 15));
 
         return $this->responsePaginated($logs);
+    }
+
+    public function downloadTemplate()
+    {
+        return Excel::download(new TemplateProduct, 'template.xlsx');
+    }
+
+    public function importTemplate(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ]);
+
+        $import = new ProductImport();
+        Excel::import($import, $request->file('file'));
+        // Excel::queueImport($import, $request->file('file'));
+
+        return response()->json([
+            'message' => 'Import data selesai',
+        ]);
     }
 }
