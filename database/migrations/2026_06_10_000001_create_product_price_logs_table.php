@@ -20,8 +20,8 @@ return new class extends Migration
             $table->integer('harga_beli_baru');
             $table->integer('harga_jual_lama');
             $table->integer('harga_jual_baru');
-            $table->decimal('margin_lama', 5, 2)->nullable();
-            $table->decimal('margin_baru', 5, 2)->nullable();
+            $table->decimal('margin_lama', 15, 2)->nullable();
+            $table->decimal('margin_baru', 15, 2)->nullable();
             $table->string('sumber', 50)->default('manual'); // 'manual', 'receiving', 'import'
             $table->unsignedBigInteger('referensi_id')->nullable(); // e.g. stock_receiving_id
             $table->string('catatan', 255)->nullable();
