@@ -27,10 +27,10 @@ RUN php artisan config:clear || true
 RUN php artisan route:clear || true
 RUN php artisan view:clear || true
 
-# Copy your supervisor configuration into the container
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# CHANGED: Copy directly to the primary, default configuration path
+COPY ./supervisord.conf /etc/supervisor/supervisord.conf
 
 EXPOSE 8080
 
-# Start supervisor instead of artisan serve directly
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# CHANGED: Launch using the global default configuration path
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
