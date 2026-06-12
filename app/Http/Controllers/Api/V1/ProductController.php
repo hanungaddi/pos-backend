@@ -232,18 +232,39 @@ class ProductController extends Controller
 
     public function showByBarcode(string $barcode, Request $request): JsonResponse
     {
-        $product = Product::where('barcode', $barcode)->first();
+        $keyword = strtolower($barcode);
 
-        if (! $product) {
+        // Try exact barcode match first (without active filter, to preserve 403 check)
+        $exactProduct = Product::with(['category', 'brand'])->where('barcode', $barcode)->first();
+        
+        if ($exactProduct) {
+            // Rejection if cashier views inactive product
+            if ($request->user() && $request->user()->hasRole('kasir') && $exactProduct->status !== 'active') {
+                return response()->json(['message' => 'Produk tidak aktif.'], 403);
+            }
+            $products = collect([$exactProduct]);
+        } else {
+            // Otherwise search partial barcode or name
+            $query = Product::query()->with(['category', 'brand']);
+
+            // Kasir can only see active products in search
+            if ($request->user() && $request->user()->hasRole('kasir')) {
+                $query->where('status', 'active');
+            }
+
+            $products = $query->where(function ($q) use ($keyword) {
+                $q->whereRaw('LOWER(barcode) LIKE ?', ["%{$keyword}%"])
+                  ->orWhereRaw('LOWER(nama) LIKE ?', ["%{$keyword}%"]);
+            })
+            ->limit(10)
+            ->get();
+        }
+
+        if ($products->isEmpty()) {
             return response()->json(['message' => 'Produk dengan barcode tersebut tidak ditemukan.'], 404);
         }
 
-        // Rejection if cashier views inactive product
-        if ($request->user() && $request->user()->hasRole('kasir') && $product->status !== 'active') {
-            return response()->json(['message' => 'Produk tidak aktif.'], 403);
-        }
-
-        return $this->responseSuccess($product->load(['category', 'brand']), 'Produk berhasil ditemukan.');
+        return $this->responseSuccess($products, 'Produk berhasil ditemukan.');
     }
 
     /**

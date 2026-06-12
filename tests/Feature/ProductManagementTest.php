@@ -65,7 +65,7 @@ class ProductManagementTest extends TestCase
             ->getJson("/api/v1/products/barcode/{$this->activeProduct->barcode}");
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.nama', 'Kopi Sachet');
+            ->assertJsonPath('data.0.nama', 'Kopi Sachet');
     }
 
     public function test_cashier_cannot_lookup_inactive_product_by_barcode(): void
@@ -83,7 +83,7 @@ class ProductManagementTest extends TestCase
             ->getJson("/api/v1/products/barcode/{$this->inactiveProduct->barcode}");
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.nama', 'Susu Kaleng');
+            ->assertJsonPath('data.0.nama', 'Susu Kaleng');
     }
 
     public function test_lookup_missing_barcode_returns_404(): void
@@ -93,6 +93,46 @@ class ProductManagementTest extends TestCase
 
         $response->assertStatus(404)
             ->assertJsonPath('message', 'Produk dengan barcode tersebut tidak ditemukan.');
+    }
+
+    public function test_lookup_by_partial_name_case_insensitive(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->getJson("/api/v1/products/barcode/kOpI");
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.nama', 'Kopi Sachet');
+    }
+
+    public function test_lookup_by_partial_barcode(): void
+    {
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->getJson("/api/v1/products/barcode/23456001");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.barcode', '8991234560012');
+    }
+
+    public function test_lookup_limit_to_10_items(): void
+    {
+        // Create 12 more products containing 'Kopi'
+        for ($i = 1; $i <= 12; $i++) {
+            Product::create([
+                'nama' => "Kopi Test {$i}",
+                'merek' => 'Test',
+                'barcode' => "99912345600{$i}",
+                'stok' => 10,
+                'harga' => 1000,
+                'status' => 'active',
+            ]);
+        }
+
+        $response = $this->actingAs($this->cashierUser, 'sanctum')
+            ->getJson("/api/v1/products/barcode/Kopi");
+
+        $response->assertStatus(200)
+            ->assertJsonCount(10, 'data');
     }
 
     public function test_admin_can_change_product_status(): void
