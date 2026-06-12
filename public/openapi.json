@@ -1542,8 +1542,8 @@
                 "tags": [
                     "Products"
                 ],
-                "summary": "Get product by barcode",
-                "description": "Get active product by barcode. Access is restricted to users with 'view_products' or 'manage_products' permission.",
+                "summary": "Search products by barcode or name",
+                "description": "Search products by barcode (exact or partial) or name (case-insensitive partial match). Returns up to 10 matching products. Cashiers are restricted to active products only.",
                 "security": [
                     {
                         "BearerAuth": []
@@ -1553,6 +1553,7 @@
                     {
                         "name": "barcode",
                         "in": "path",
+                        "description": "Barcode or name query to search for.",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -1561,7 +1562,17 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Product found."
+                        "description": "Products found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Product"
+                                    }
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "Product not found."
