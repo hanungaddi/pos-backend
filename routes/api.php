@@ -89,6 +89,7 @@ Route::prefix('v1')->group(function () {
             //Download Template Master Product & Import Master
             Route::get('template-product/download', [ProductController::class, 'downloadTemplate']);
             Route::post('template-product/import', [ProductController::class, 'importTemplate']);
+            Route::get('template-product/import/progress/{import}', [ProductController::class, 'progress'])->name('products.import.progress');
 
             Route::put('products/{product}', [ProductController::class, 'update']);
             Route::delete('products/{product}', [ProductController::class, 'destroy']);

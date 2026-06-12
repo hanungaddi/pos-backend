@@ -14,9 +14,21 @@ use App\Exports\TemplateProduct;
 use App\Imports\ProductImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Jobs\FinishProductImport;
+use App\Models\ProductImportJob;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ProductController extends Controller
 {
+
+    private function countRows(string $fullPath): int
+    {
+        $reader = IOFactory::createReaderForFile($fullPath);
+        $info = $reader->listWorksheetInfo($fullPath);
+
+        return (int) ($info[0]['totalRows'] ?? 0);
+    }
+
     public function index(Request $request): JsonResponse
     {
         // Eager load category and brand relations
@@ -382,15 +394,66 @@ class ProductController extends Controller
     public function importTemplate(Request $request)
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        'file' => ['required', 'file', 'mimes:xlsx,csv'],
         ]);
 
-        $import = new ProductImport();
-        Excel::import($import, $request->file('file'));
-        // Excel::queueImport($import, $request->file('file'));
+        $disk = 'local';
+        $file = $request->file('file');
+
+        $path = $file->store('imports', $disk);
+
+        $fullPath = Storage::disk($disk)->path($path);
+
+        if (! file_exists($fullPath)) {
+            return response()->json([
+                'message' => 'File gagal disimpan.',
+                'path' => $path,
+                'full_path' => $fullPath,
+            ], 500);
+        }
+
+        $totalRows = $this->countRows($fullPath);
+
+        $importJob = ProductImportJob::create([
+            'user_id' => auth()->id(),
+            'file_name' => $file->getClientOriginalName(),
+            'total_rows' => max($totalRows - 1, 0),
+            'status' => 'pending',
+        ]);
+
+        (new ProductImport($importJob->id))
+            ->queue($path, $disk)
+            ->allOnQueue('importMasterProducts')
+            ->chain([
+                new FinishProductImport($importJob->id),
+            ]);
 
         return response()->json([
-            'message' => 'Import data selesai',
+            'message' => 'Import sedang diproses.',
+            'import_id' => $importJob->id,
+        ]);
+    }
+
+    public function progress(ProductImportJob $import)
+    {
+        $percent = 0;
+
+        if ($import->status === 'completed') {
+            $percent = 100;
+        } elseif ($import->total_rows > 0) {
+            $percent = round(($import->processed_rows / $import->total_rows) * 100, 2);
+            $percent = min($percent, 100);
+        }
+
+        return response()->json([
+            'id'             => $import->id,
+            'status'         => $import->status,
+            'total_rows'     => $import->total_rows,
+            'processed_rows' => $import->processed_rows,
+            'imported_rows'  => $import->imported_rows,
+            'skipped_rows'   => $import->skipped_rows,
+            'percent'        => $percent,
+            'error_message'  => $import->error_message,
         ]);
     }
 }

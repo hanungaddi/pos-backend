@@ -3,43 +3,47 @@
 namespace App\Imports;
 
 use App\Models\Product;
+use App\Models\ProductImportJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, ShouldQueue
 {
-    public int $imported = 0;
-    public int $skipped = 0;
+    use Importable;
 
-    /**
-     * Mapping row Excel menjadi model Product
-     */
+    public function __construct(
+        protected int $importJobId
+    ) {}
+
     public function model(array $row)
     {
-        // Ambil dan rapikan data dari Excel
         $barcode = isset($row['barcode']) ? trim((string) $row['barcode']) : null;
         $namaExcel = isset($row['nama']) ? trim((string) $row['nama']) : null;
 
-        // Normalisasi nama untuk perbandingan
-        $namaExcelNormalized = strtolower($namaExcel ?? '');
+        if (empty($namaExcel)) {
+            $this->incrementProgress(imported: 0, skipped: 1);
+            return null;
+        }
+
+        $namaExcelNormalized = strtolower($namaExcel);
+
         try {
             $existingProduct = null;
 
-            // Jika barcode dari Excel ada, cek ke database
             if (!empty($barcode)) {
                 $existingProduct = Product::where('barcode', $barcode)->first();
             }
 
-            // Jika barcode sudah ada di database
             if ($existingProduct) {
-                
                 $namaDB = trim((string) $existingProduct->nama);
                 $namaDBNormalized = strtolower($namaDB);
 
-                // Jika barcode sama dan nama sama, update data saja
                 if ($namaDBNormalized === $namaExcelNormalized) {
                     $existingProduct->update([
                         'nama'       => $namaExcel,
@@ -50,23 +54,19 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
                         'margin'     => 0,
                     ]);
 
-                    $this->imported++;
+                    $this->incrementProgress(imported: 1, skipped: 0);
 
-                    return $existingProduct;
+                    return null;
                 }
 
-                // Jika barcode sama tapi nama berbeda,
-                // maka buat barcode baru untuk produk baru
                 $barcode = Product::generateUniqueBarcode();
             }
 
-            // Jika barcode kosong dari Excel, buat barcode baru
             if (empty($barcode)) {
                 $barcode = Product::generateUniqueBarcode();
             }
 
-            // Buat produk baru
-            $product = new Product([
+            Product::create([
                 'nama'       => $namaExcel,
                 'stok'       => $row['stok'] ?? 0,
                 'harga_jual' => $row['harga_jual'] ?? 0,
@@ -76,21 +76,53 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
                 'margin'     => 0,
             ]);
 
-            $product->save();
-            $this->imported++;
-            return $product;
-        } catch (\Exception $e) {
-            Log::error('Import Product failed', [
-                'row'   => $row,
-                'error' => $e->getMessage()
+            $this->incrementProgress(imported: 1, skipped: 0);
+
+            return null;
+        } catch (Throwable $e) {
+            Log::error('Import Product row failed', [
+                'import_job_id' => $this->importJobId,
+                'row'           => $row,
+                'error'         => $e->getMessage(),
+                'trace'         => $e->getTraceAsString(),
             ]);
-            $this->skipped++;
+
+            $this->incrementProgress(imported: 0, skipped: 1);
+
             return null;
         }
     }
 
+    private function incrementProgress(int $imported, int $skipped): void
+    {
+        DB::table('product_import_jobs')
+            ->where('id', $this->importJobId)
+            ->update([
+                'processed_rows' => DB::raw('processed_rows + 1'),
+                'imported_rows'  => DB::raw('imported_rows + ' . $imported),
+                'skipped_rows'   => DB::raw('skipped_rows + ' . $skipped),
+                'status'         => 'processing',
+                'updated_at'     => now(),
+            ]);
+    }
+
     public function chunkSize(): int
     {
-        return 500; // bisa diubah sesuai memory server
+        return 500;
+    }
+
+    public function failed(Throwable $e): void
+    {
+        ProductImportJob::where('id', $this->importJobId)->update([
+            'status'        => 'failed',
+            'error_message' => $e->getMessage(),
+            'updated_at'    => now(),
+        ]);
+
+        Log::error('Product import chunk failed', [
+            'import_job_id' => $this->importJobId,
+            'error'         => $e->getMessage(),
+            'trace'         => $e->getTraceAsString(),
+        ]);
     }
 }
