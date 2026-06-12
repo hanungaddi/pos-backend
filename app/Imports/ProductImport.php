@@ -19,37 +19,69 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
      */
     public function model(array $row)
     {
-        // Ambil barcode dari Excel, jika duplicate di DB generate baru
-        $barcode = $row['barcode'] ?? null;
-        if (!$barcode || Product::where('barcode', $barcode)->exists()) {
-            $barcode = Product::generateUniqueBarcode();
-        }
+        // Ambil dan rapikan data dari Excel
+        $barcode = isset($row['barcode']) ? trim((string) $row['barcode']) : null;
+        $namaExcel = isset($row['nama']) ? trim((string) $row['nama']) : null;
 
-        $data = [
-            'nama'       => $row['nama'] ?? null,
-            'stok'       => $row['stok'] ?? 0,
-            'harga_jual' => $row['harga_jual'] ?? 0,
-            'harga_beli' => $row['harga_beli'] ?? 0,
-            'status'     => $row['status'] ?? 'active',
-            'barcode'    => $barcode,
-            'margin'     => 0, // skip margin calc saat import
-            // 'harga_member' => $row['harga_member'] ?? 0,
-            // 'harga_grosir' => $row['harga_grosir'] ?? 0,
-            // 'satuan_beli' => $row['satuan_beli'] ?? 0,
-            // 'satuan_jual' => $row['satuan_jual'] ?? 0,
-            // 'is_grosir' => $row['is_grosir'] ?? 0,
-            // 'min_pembelian_grosir' => $row['min_pembelian_grosir'] ?? 0,
-            // 'min_stok' => $row['min_stock'] ?? 0
-        ];
-
+        // Normalisasi nama untuk perbandingan
+        $namaExcelNormalized = strtolower($namaExcel ?? '');
         try {
-            $product = new Product($data);
+            $existingProduct = null;
+
+            // Jika barcode dari Excel ada, cek ke database
+            if (!empty($barcode)) {
+                $existingProduct = Product::where('barcode', $barcode)->first();
+            }
+
+            // Jika barcode sudah ada di database
+            if ($existingProduct) {
+                
+                $namaDB = trim((string) $existingProduct->nama);
+                $namaDBNormalized = strtolower($namaDB);
+
+                // Jika barcode sama dan nama sama, update data saja
+                if ($namaDBNormalized === $namaExcelNormalized) {
+                    $existingProduct->update([
+                        'nama'       => $namaExcel,
+                        'stok'       => $row['stok'] ?? 0,
+                        'harga_jual' => $row['harga_jual'] ?? 0,
+                        'harga_beli' => $row['harga_beli'] ?? 0,
+                        'status'     => $row['status'] ?? 'active',
+                        'margin'     => 0,
+                    ]);
+
+                    $this->imported++;
+
+                    return $existingProduct;
+                }
+
+                // Jika barcode sama tapi nama berbeda,
+                // maka buat barcode baru untuk produk baru
+                $barcode = Product::generateUniqueBarcode();
+            }
+
+            // Jika barcode kosong dari Excel, buat barcode baru
+            if (empty($barcode)) {
+                $barcode = Product::generateUniqueBarcode();
+            }
+
+            // Buat produk baru
+            $product = new Product([
+                'nama'       => $namaExcel,
+                'stok'       => $row['stok'] ?? 0,
+                'harga_jual' => $row['harga_jual'] ?? 0,
+                'harga_beli' => $row['harga_beli'] ?? 0,
+                'status'     => $row['status'] ?? 'active',
+                'barcode'    => $barcode,
+                'margin'     => 0,
+            ]);
+
             $product->save();
             $this->imported++;
             return $product;
         } catch (\Exception $e) {
             Log::error('Import Product failed', [
-                'row' => $row,
+                'row'   => $row,
                 'error' => $e->getMessage()
             ]);
             $this->skipped++;
