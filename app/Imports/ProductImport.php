@@ -26,6 +26,7 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
         $barcode = isset($row['barcode']) ? trim((string) $row['barcode']) : null;
         $namaExcel = isset($row['nama']) ? trim((string) $row['nama']) : null;
 
+        // Skip row jika nama kosong
         if (empty($namaExcel)) {
             $this->incrementProgress(imported: 0, skipped: 1);
             return null;
@@ -34,34 +35,34 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
         $namaExcelNormalized = strtolower($namaExcel);
 
         try {
+            // 1. Cari produk berdasarkan barcode
             $existingProduct = null;
-
             if (!empty($barcode)) {
                 $existingProduct = Product::where('barcode', $barcode)->first();
             }
 
-            if ($existingProduct) {
-                $namaDB = trim((string) $existingProduct->nama);
-                $namaDBNormalized = strtolower($namaDB);
-
-                if ($namaDBNormalized === $namaExcelNormalized) {
-                    $existingProduct->update([
-                        'nama'       => $namaExcel,
-                        'stok'       => $row['stok'] ?? 0,
-                        'harga_jual' => $row['harga_jual'] ?? 0,
-                        'harga_beli' => $row['harga_beli'] ?? 0,
-                        'status'     => $row['status'] ?? 'active',
-                        'margin'     => 0,
-                    ]);
-
-                    $this->incrementProgress(imported: 1, skipped: 0);
-
-                    return null;
-                }
-
-                $barcode = Product::generateUniqueBarcode();
+            // 2. Jika tidak ditemukan dengan barcode, cari berdasarkan nama (case-insensitive)
+            if (!$existingProduct) {
+                $existingProduct = Product::whereRaw('LOWER(nama) = ?', [$namaExcelNormalized])->first();
             }
 
+            // 3. Jika ditemukan, update produk
+            if ($existingProduct) {
+                $existingProduct->update([
+                    'nama'       => $namaExcel,
+                    'stok'       => $row['stok'] ?? 0,
+                    'harga_jual' => $row['harga_jual'] ?? 0,
+                    'harga_beli' => $row['harga_beli'] ?? 0,
+                    'status'     => $row['status'] ?? 'active',
+                    'margin'     => 0,
+                    'barcode'    => $existingProduct->barcode, // tetap pakai barcode lama
+                ]);
+
+                $this->incrementProgress(imported: 1, skipped: 0);
+                return null;
+            }
+
+            // 4. Jika tidak ditemukan, buat produk baru
             if (empty($barcode)) {
                 $barcode = Product::generateUniqueBarcode();
             }
@@ -77,7 +78,6 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
             ]);
 
             $this->incrementProgress(imported: 1, skipped: 0);
-
             return null;
         } catch (Throwable $e) {
             Log::error('Import Product row failed', [
@@ -88,7 +88,6 @@ class ProductImport implements ToModel, WithHeadingRow, WithChunkReading, Should
             ]);
 
             $this->incrementProgress(imported: 0, skipped: 1);
-
             return null;
         }
     }
