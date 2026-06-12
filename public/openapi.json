@@ -4708,7 +4708,7 @@
                 }
             }
         },
-        "/api/v1/purchase/receiving/{id}/payment-summary": {
+        "/api/v1/purchase/payment/summary": {
             "get": {
                 "tags": [
                     "Purchase Payments"
@@ -4721,9 +4721,10 @@
                 ],
                 "parameters": [
                     {
-                        "name": "id",
-                        "in": "path",
+                        "name": "receiving_id",
+                        "in": "query",
                         "required": true,
+                        "description": "The ID of the Stock Receiving note.",
                         "schema": {
                             "type": "integer"
                         }

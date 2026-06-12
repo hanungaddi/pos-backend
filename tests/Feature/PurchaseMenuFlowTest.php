@@ -547,7 +547,7 @@ class PurchaseMenuFlowTest extends TestCase
 
         // 4. Test payment summary before payment
         $summaryResponse1 = $this->actingAs($this->managerUser, 'sanctum')
-            ->getJson("/api/v1/purchase/receiving/{$receiving->id}/payment-summary");
+            ->getJson("/api/v1/purchase/payment/summary?receiving_id={$receiving->id}");
         $summaryResponse1->assertStatus(200)
             ->assertJsonPath('total_faktur', 300000)
             ->assertJsonPath('total_dibayar', 0)
@@ -578,7 +578,7 @@ class PurchaseMenuFlowTest extends TestCase
 
         // Test payment summary after partial payment
         $summaryResponse2 = $this->actingAs($this->managerUser, 'sanctum')
-            ->getJson("/api/v1/purchase/receiving/{$receiving->id}/payment-summary");
+            ->getJson("/api/v1/purchase/payment/summary?receiving_id={$receiving->id}");
         $summaryResponse2->assertStatus(200)
             ->assertJsonPath('total_dibayar', 100000)
             ->assertJsonPath('sisa_hutang', 200000)
