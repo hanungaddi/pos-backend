@@ -190,8 +190,14 @@ class ReceivingPaymentController extends Controller
         return $this->responseSuccess($receivings, 'Outstanding Stock Receivings.');
     }
 
-    public function paymentSummary(int $id): JsonResponse
+    public function paymentSummary(Request $request): JsonResponse
     {
+        $id = $request->integer('receiving_id') ?: $request->integer('id');
+
+        if (!$id) {
+            return response()->json(['message' => 'Parameter receiving_id wajib diisi.'], 400);
+        }
+
         $receiving = StockReceiving::find($id);
         if (!$receiving) {
             return response()->json(['message' => 'Data penerimaan tidak ditemukan.'], 404);

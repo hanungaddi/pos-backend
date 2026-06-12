@@ -231,8 +231,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['permission:view_purchase|manage_purchase'])->group(function () {
             Route::get('payment/outstanding', [ReceivingPaymentController::class, 'outstanding']);
             Route::get('payments/outstanding', [ReceivingPaymentController::class, 'outstanding']);
-            Route::get('receiving/{id}/payment-summary', [ReceivingPaymentController::class, 'paymentSummary']);
-            Route::get('receivings/{id}/payment-summary', [ReceivingPaymentController::class, 'paymentSummary']);
+            Route::get('payment/summary', [ReceivingPaymentController::class, 'paymentSummary']);
+            Route::get('payments/summary', [ReceivingPaymentController::class, 'paymentSummary']);
             Route::get('payment', [ReceivingPaymentController::class, 'index']);
             Route::get('payments', [ReceivingPaymentController::class, 'index']);
             Route::get('payment/{id}', [ReceivingPaymentController::class, 'show']);
